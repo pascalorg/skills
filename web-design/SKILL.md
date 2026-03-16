@@ -8,9 +8,43 @@ metadata:
 
 # Web Design
 
-A practitioner-sourced reference for building web interfaces well. Synthesized from Refactoring UI, Tailwind CSS, shadcn/ui, Laws of UX, animations.dev, detail.design, Every Layout, Web Interface Guidelines, and other authoritative sources.
+A practitioner-sourced reference for building web interfaces well. Synthesized from Refactoring UI, Tailwind CSS, shadcn/ui, Laws of UX, animations.dev, detail.design, Every Layout, Web Interface Guidelines, jakub.kr, and other authoritative sources.
 
 Use this skill whenever you are building, reviewing, or improving a web interface.
+
+## Implementation Priority
+
+When building or reviewing a UI, work through these tiers in order. Each tier depends on the ones above it — fixing a shadow detail is wasted effort if the layout is broken.
+
+### Tier 1: Structure (get this right first)
+
+1. **Semantic HTML.** Correct elements (`<button>`, `<nav>`, `<main>`, headings in order). Everything else builds on this.
+2. **Layout.** Grid/flex structure, spacing scale, content width constraints (`max-w-prose`, 12-col grid). Does the page hold together at every viewport?
+3. **Responsive behavior.** Mobile-first, intrinsic sizing (`auto-fill` grids, `clamp()`, `flex-wrap`). No content hidden on small screens without reason.
+4. **Typography fundamentals.** Type scale, line height (1.5 body, 1.1-1.25 headings), line length (`max-width: 65ch`), `rem` units for font sizes.
+
+### Tier 2: Visual System (the design backbone)
+
+5. **Color and contrast.** Palette applied, semantic tokens set, WCAG AA contrast met (4.5:1 text, 3:1 UI). Dark mode if needed.
+6. **Visual hierarchy.** Four text levels working (foreground, muted, muted/70, muted/50). Primary action obvious. Squint test passes.
+7. **Component states.** Every interactive element has hover, focus-visible, active, disabled, loading, error, and empty states accounted for.
+8. **Spacing and proportion.** Outer padding >= inner padding. No ambiguous gaps. Button padding ratio (2x horizontal : 1x vertical). Input heights match button heights.
+
+### Tier 3: Interaction and Motion (make it feel alive)
+
+9. **Keyboard and accessibility.** Focus styles, tab order, skip links, `aria` attributes, touch targets (44px+). Test with keyboard only.
+10. **Transitions.** Hover/active feedback (150ms ease-out), state transitions (200-300ms), correct easing per direction (ease-out for enter, ease-in for exit).
+11. **Animation.** Stagger entrances, subtle exits, interruptible transitions, `prefers-reduced-motion` respected. Spring physics where appropriate.
+
+### Tier 4: Polish (the last 10% that makes it feel crafted)
+
+12. **Shadows and depth.** Layered shadows, shadows-instead-of-borders where appropriate, consistent light source. Dark mode: surface lightness instead of shadows.
+13. **Optical adjustments.** Icon-side button padding, concentric border radii, play button offset, tabular-nums on data, image outlines.
+14. **Micro-interactions.** Contextual icon animation, blur on stagger entrances, copy-to-clipboard feedback, optimistic updates.
+15. **Defensive CSS.** `min-width: 0` on flex children, `overflow-wrap: break-word`, `scrollbar-gutter: stable`, text truncation, safe-area padding.
+16. **Final checks.** Squint test, grayscale test, swap test, "would a human ship this?" test. No AI slop (gratuitous gradients, identical metric cards, centered everything).
+
+**Rule of thumb:** If you're debating a shadow opacity while the layout breaks at 768px, stop and go back to Tier 1.
 
 ## Table of Contents
 
@@ -467,6 +501,46 @@ box-shadow:
 - **Nest corner radii correctly.** Inner radius = outer radius - gap between elements. If outer is 12px and padding is 8px, inner should be 4px.
 - **Container borders need dual contrast.** They must be distinguishable from both the container's background and the page background.
 
+### Shadows Instead of Borders
+
+Subtle layered `box-shadow` adds depth better than solid borders and adapts to any background through transparency:
+
+```css
+/* Multi-shadow composition — replaces border with soft depth */
+box-shadow:
+  0px 0px 0px 1px rgba(0, 0, 0, 0.06),
+  0px 1px 2px -1px rgba(0, 0, 0, 0.06),
+  0px 2px 4px 0px rgba(0, 0, 0, 0.04);
+
+/* Hover: slightly increase opacity for lift effect */
+box-shadow:
+  0px 0px 0px 1px rgba(0, 0, 0, 0.08),
+  0px 1px 2px -1px rgba(0, 0, 0, 0.08),
+  0px 2px 4px 0px rgba(0, 0, 0, 0.06);
+```
+
+- The first layer (`0px 0px 0px 1px`) acts as the border replacement — a zero-blur spread gives a crisp 1px edge.
+- Works on image backgrounds and color backgrounds where solid `border-color` would clash.
+- Transition `box-shadow` on hover for interactive lift. Use `transition: box-shadow 150ms ease` (or Tailwind's `transition-shadow`).
+
+### Image Outlines
+
+Add a 1px outline to images for consistent visual framing and depth:
+
+```css
+img {
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+  outline-offset: -1px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  img { outline-color: rgba(255, 255, 255, 0.1); }
+}
+```
+
+This is simpler than the inset ring technique and works on any `<img>` directly. Use `outline-offset: -1px` so the outline sits inside the image bounds.
+
 ### In Practice: Tailwind Shadow and Depth
 
 **Elevation classes from Tailwind mapped to use cases:**
@@ -483,6 +557,25 @@ box-shadow:
 {/* Dialog/modal backdrop + elevated panel */}
 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm">
   <div className="rounded-xl border bg-card shadow-2xl">
+```
+
+**Shadow instead of border (card with hover lift):**
+```tsx
+<div className="rounded-lg bg-card p-4
+  shadow-[0px_0px_0px_1px_rgba(0,0,0,0.06),0px_1px_2px_-1px_rgba(0,0,0,0.06),0px_2px_4px_0px_rgba(0,0,0,0.04)]
+  hover:shadow-[0px_0px_0px_1px_rgba(0,0,0,0.08),0px_1px_2px_-1px_rgba(0,0,0,0.08),0px_2px_4px_0px_rgba(0,0,0,0.06)]
+  transition-shadow">
+  <h3 className="font-semibold">No border needed</h3>
+  <p className="text-sm text-muted-foreground">Shadow provides the edge.</p>
+</div>
+```
+
+**Image with inset outline (simple approach):**
+```tsx
+<img
+  src={src} alt={alt}
+  className="rounded-lg outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
+/>
 ```
 
 **Nested border radius (card with inner image):**
@@ -610,6 +703,7 @@ Custom curves are strongly preferred over built-in CSS easings. Example producti
 
 - **Asymmetric timing for safety:** Slow, predictable timing for destructive actions paired with fast release feedback.
 - **Entry != exit.** Differentiate enter vs. exit animations. Entry should feel decisive; exit should feel natural.
+- **Exit animations should be subtler than entrances.** Use less movement on exit — a fixed small value (e.g., `y: -12px`) instead of the full distance (e.g., `y: calc(-100% - 4px)`). The exiting element needs just enough motion for directional indication, not a full departure animation. Add a light `blur(4px)` on exit to soften the disappearance.
 
 ### Animation Techniques
 
@@ -625,12 +719,17 @@ Custom curves are strongly preferred over built-in CSS easings. Example producti
 
 **Use `clip-path` for reveals:** Hardware-accelerated with no layout shifts. `clip-path: inset(0 0 100% 0)` to `inset(0 0 0 0)`.
 
+**Make animations interruptible.** CSS transitions interpolate toward the latest state and can be interrupted mid-action — use them for interactions (hovers, toggles, drags). CSS keyframe animations run a fixed timeline and cannot retarget — use them for staged sequences that play once (page load entrances, celebration effects). Users change intent mid-interaction; interruptible animations feel responsive, non-interruptible ones feel broken.
+
+**Animate icons contextually.** When icons appear or disappear conditionally (e.g., a checkmark replacing a copy icon), animate `opacity`, `scale`, and `blur` together for a smooth transition instead of an instant swap. Use spring physics or short transitions (150-200ms). This applies to any element that swaps in/out based on state.
+
 ### Staging and Choreography (from Disney's 12 Principles)
 
 - **One focal point at a time.** Only one element should animate prominently. If two things move simultaneously, the eye doesn't know where to look.
 - **Context menus animate on exit only, not entrance.** They should appear instantly and animate away.
 - **Squash and stretch range: 0.95-1.05 scale.** Anything beyond looks cartoonish in UI.
 - **Stagger delays: max 50ms per item.** Longer stagger feels sluggish. For a 5-item list: 0ms, 50ms, 100ms, 150ms, 200ms.
+- **Split and stagger for impact.** Instead of animating an entire block at once, break it into smaller chunks (sections, lines, even words) and animate each individually. Combine `opacity`, `blur(4-5px)`, and `translateY(6-8px)` for the initial state. Use CSS custom properties for clean stagger control: `animation-delay: calc(var(--stagger-delay, 80ms) * var(--stagger-index, 0))`. Three tiers of granularity: container-level (simple), section-level (balanced), word-level (dramatic).
 - **Dim backgrounds on overlays.** Darkened backdrops direct focus to the foreground element.
 - **Use spring physics for bounce-and-settle effects.** Don't fake it with easing curves. Framer Motion `type: "spring"` with `stiffness: 300, damping: 20` is a good starting point.
 
@@ -726,6 +825,44 @@ export function StaggeredList({ items }) {
     </ul>
   )
 }
+```
+
+**Staggered entrance with blur (CSS-only, higher impact):**
+```css
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(8px);
+  }
+}
+
+.stagger-item {
+  animation: stagger-in 800ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation-delay: calc(var(--stagger-index, 0) * 80ms);
+}
+```
+```tsx
+{/* Assign --stagger-index per element */}
+<div className="stagger-item" style={{ "--stagger-index": 0 } as React.CSSProperties}>Section 1</div>
+<div className="stagger-item" style={{ "--stagger-index": 1 } as React.CSSProperties}>Section 2</div>
+<div className="stagger-item" style={{ "--stagger-index": 2 } as React.CSSProperties}>Section 3</div>
+```
+
+**Subtle exit animation (Framer Motion — less motion than entrance):**
+```tsx
+<AnimatePresence>
+  {show && (
+    <motion.div
+      initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      exit={{ opacity: 0, y: -12, filter: "blur(4px)" }}
+      transition={{ type: "spring", duration: 0.45, bounce: 0 }}
+    >
+      {children}
+    </motion.div>
+  )}
+</AnimatePresence>
 ```
 
 **Skeleton loading with Tailwind animate-pulse:**
@@ -1701,7 +1838,8 @@ Without `@property`, CSS can't interpolate custom properties -- the animation wo
 
 Small corrections the eye expects but math doesn't provide:
 
-- **Play button icons** need 1-2px right offset to appear centered (the triangle's visual weight sits left of its bounding box).
+- **Play button icons** need 1-2px right offset to appear centered (the triangle's visual weight sits left of its bounding box). Best practice: fix the offset within the SVG itself to avoid additional CSS adjustments.
+- **Buttons with text + icon** need reduced padding on the icon side. The icon's whitespace within its bounding box creates visual imbalance — reduce that side's padding by 2-4px to compensate.
 - **Circular icons in square containers** appear smaller. Increase circular icon size by ~5% or reduce container padding.
 - **Text next to checkboxes/radio buttons** needs negative top margin of 1-2px at small sizes because the baseline sits above the visual center.
 - **Pill badges** (`rounded-full`) need slightly more horizontal padding than their border-radius suggests -- add 2-4px extra.
