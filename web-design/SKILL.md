@@ -1,0 +1,1550 @@
+---
+name: web-design
+description: Web design reference for building production-grade interfaces. Covers layout, typography, color, spacing, shadows, animation, accessibility, responsive design, components, performance, and UX psychology. Use when building UI, reviewing design quality, choosing design tokens, or making any visual design decision.
+metadata:
+  author: pascalorg
+  version: "1.0.0"
+---
+
+# Web Design
+
+A practitioner-sourced reference for building web interfaces well. Synthesized from Refactoring UI, Tailwind CSS, shadcn/ui, Laws of UX, animations.dev, detail.design, Every Layout, Web Interface Guidelines, and other authoritative sources.
+
+Use this skill whenever you are building, reviewing, or improving a web interface.
+
+## Table of Contents
+
+1. [Layout and Spacing](#1-layout-and-spacing)
+2. [Typography](#2-typography)
+3. [Color](#3-color)
+4. [Shadows and Depth](#4-shadows-and-depth)
+5. [Visual Hierarchy](#5-visual-hierarchy)
+6. [Animation and Motion](#6-animation-and-motion)
+7. [Components](#7-components)
+8. [Responsive Design](#8-responsive-design)
+9. [Accessibility](#9-accessibility)
+10. [Performance](#10-performance)
+11. [UX Psychology](#11-ux-psychology)
+12. [Design Tokens](#12-design-tokens)
+13. [Polish and Craft](#13-polish-and-craft)
+14. [Microcopy and UX Writing](#14-microcopy-and-ux-writing)
+15. [Defensive CSS](#15-defensive-css)
+16. [Modern CSS Reset](#16-modern-css-reset)
+
+---
+
+## 1. Layout and Spacing
+
+### Spacing Scale
+
+Use a consistent mathematical scale rooted in a base unit. The standard base is **4px** (0.25rem). Every spacing value should be a multiple of this base.
+
+| Token | Value | Use |
+|-------|-------|-----|
+| 0.5 | 2px | Hairline gaps, icon padding |
+| 1 | 4px | Tight inline spacing |
+| 1.5 | 6px | Small component internal padding |
+| 2 | 8px | Default gap between related items |
+| 3 | 12px | Compact card padding |
+| 4 | 16px | Standard card/section padding |
+| 5 | 20px | Comfortable padding |
+| 6 | 24px | Section padding |
+| 8 | 32px | Section gaps |
+| 10 | 40px | Large section gaps |
+| 12 | 48px | Page section spacing |
+| 16 | 64px | Major page divisions |
+| 20 | 80px | Hero spacing |
+| 24 | 96px | Large hero spacing |
+
+### Spacing Rules
+
+- **Outer padding >= inner padding.** A card's outer margin must equal or exceed its internal padding. Interior elements relate more closely to each other than to external elements.
+- **Proximity signals relationship.** Elements closer together are perceived as related (Gestalt Law of Proximity). Use spacing deliberately to group or separate.
+- **Eliminate ambiguous spacing.** If the gap between two elements could belong to either, it's ambiguous. Make relationships clear through asymmetric spacing.
+- **Eliminate dead zones.** Use padding on child elements instead of margins on containers. Every pixel between interactive items should be clickable.
+- **Use consistent increments.** Don't pick arbitrary values. Constrain to the scale. Three similar spacings (14px, 16px, 18px) look like mistakes -- pick one.
+
+### Layout Primitives
+
+These CSS patterns create responsive layouts without media queries:
+
+**Stack** -- Vertical flow with consistent gaps:
+```css
+.stack > * + * { margin-block-start: var(--space); }
+```
+
+**Cluster** -- Horizontal wrapping with gaps:
+```css
+.cluster { display: flex; flex-wrap: wrap; gap: var(--space); }
+```
+
+**Sidebar** -- Two columns where one is fixed:
+```css
+.sidebar { display: flex; flex-wrap: wrap; gap: var(--space); }
+.sidebar > :first-child { flex-basis: 20rem; flex-grow: 1; }
+.sidebar > :last-child { flex-basis: 0; flex-grow: 999; min-inline-size: 60%; }
+```
+
+**Grid (auto-fill)** -- Responsive columns without breakpoints:
+```css
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: var(--space); }
+```
+
+**Center** -- Constrained width with centering:
+```css
+.center { max-inline-size: var(--measure); margin-inline: auto; padding-inline: var(--space); }
+```
+
+### Grid and Flex Guidance
+
+- Use **CSS Grid** for two-dimensional layouts (rows and columns together).
+- Use **Flexbox** for one-dimensional layouts (single row or column).
+- Prefer `fr` units over percentages in Grid -- `fr` distributes space after gaps, preventing overflow.
+- Use `gap` instead of margins between items.
+- A **12-column grid** provides maximum flexibility (divisible by 1, 2, 3, 4, 6).
+- Set `min-width: 0` on flex children to prevent content overflow.
+- Use `align-self: start` on sticky sidebar elements inside grid layouts.
+
+### In Practice: Tailwind Layout Patterns
+
+**Page shell with sidebar:**
+```tsx
+<div className="flex min-h-screen">
+  <aside className="hidden lg:flex w-64 flex-col border-r bg-muted/40 p-4">
+    <nav className="flex flex-col gap-1">{/* nav items */}</nav>
+  </aside>
+  <main className="flex-1 p-6">
+    <div className="mx-auto max-w-4xl space-y-8">{children}</div>
+  </main>
+</div>
+```
+
+**Card grid that adapts without breakpoints:**
+```tsx
+<div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4">
+  {items.map(item => <Card key={item.id} {...item} />)}
+</div>
+```
+
+**Content section with consistent vertical rhythm:**
+```tsx
+<section className="space-y-6 py-12">
+  <h2 className="text-2xl font-semibold tracking-tight">Features</h2>
+  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    {features.map(f => <FeatureCard key={f.id} {...f} />)}
+  </div>
+</section>
+```
+
+**Card with proper spacing hierarchy (outer > inner):**
+```tsx
+<div className="rounded-lg border bg-card p-6">      {/* outer: p-6 */}
+  <div className="space-y-4">                          {/* inner gap: 4 */}
+    <h3 className="font-semibold leading-tight">Title</h3>
+    <p className="text-sm text-muted-foreground">Description text here.</p>
+  </div>
+</div>
+```
+
+---
+
+## 2. Typography
+
+### Type Scale
+
+Use a mathematical ratio to generate harmonious font sizes. Choose the ratio based on context:
+
+| Ratio | Name | Best For |
+|-------|------|----------|
+| 1.067 | Minor Second | Dense UI, dashboards |
+| 1.125 | Major Second | Compact interfaces |
+| 1.200 | Minor Third | General purpose (recommended default) |
+| 1.250 | Major Third | Content-heavy sites |
+| 1.333 | Perfect Fourth | Marketing, editorial |
+| 1.414 | Augmented Fourth | Bold presentation |
+| 1.500 | Perfect Fifth | Dramatic hierarchy |
+| 1.618 | Golden Ratio | High-impact landing pages |
+
+### Font Size Rules
+
+- **Body text minimum: 16px (1rem).** This is the browser default. Never go smaller for primary reading content.
+- **Use `rem` for font sizes.** This respects both browser zoom and the user's default font size preference. Pixels prevent users from scaling text.
+- **Use `rem` for media queries.** When users increase their default font size, rem-based breakpoints trigger mobile layouts on wider screens, giving them more room.
+- **Use `px` for padding, borders, and decorative elements.** These shouldn't scale with text size.
+- **Use `rem` for vertical margins.** Spacing between paragraphs should grow with text.
+
+### Fluid Typography
+
+Use `clamp()` for responsive sizing that scales smoothly between breakpoints:
+
+```css
+/* Heading: 32px on small screens, 48px on large, fluid between */
+font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+```
+
+Define a small-screen scale (e.g., 1.2x at 320px) and a large-screen scale (e.g., 1.333x at 1500px). The browser interpolates between them.
+
+### Line Height
+
+- **Body text: 1.5.** This meets WCAG criteria and improves readability for all users.
+- **Headings: 1.1 - 1.25.** Larger text needs tighter leading.
+- **The bigger the text, the less line-height it needs.** Scale inversely.
+- **Headings and buttons: 1.1** is a good default.
+
+### Line Length
+
+- **Optimal: 60-75 characters** (about 8-10 words per line).
+- **Maximum: 80 characters.** Beyond this, readers lose their place.
+- **Use `max-width: 65ch`** on content containers to enforce this.
+
+### Letter Spacing
+
+- **Large text: reduce letter-spacing.** Bigger text needs less space between characters.
+- **Small text: increase letter-spacing slightly.**
+- **All-caps text: add +0.05 to +0.1em letter-spacing.** Uppercase letters crowd each other without extra space.
+- **Use `font-variant-numeric: tabular-nums`** in tables and timers so digits maintain consistent width.
+
+### Text Wrapping
+
+```css
+/* Balanced line breaks for headings */
+h1, h2, h3, h4, h5, h6 { text-wrap: balance; }
+
+/* Avoid orphans in paragraphs */
+p { text-wrap: pretty; }
+
+/* Prevent overflow from long words/URLs */
+p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
+```
+
+### Font Rendering
+
+```css
+body { -webkit-font-smoothing: antialiased; }
+html { text-rendering: optimizeLegibility; -webkit-text-size-adjust: 100%; }
+```
+
+### Font Weight
+
+- Never use weights below 400 -- they become illegible on most screens.
+- Use 500-600 for medium headings.
+- Use 700 for strong emphasis.
+- **Prevent layout shift from weight changes:** Use a hidden `::after` pseudo-element with bold text to reserve the bold width, preventing jitter when toggling active states.
+
+### Typeface Pairing
+
+- **Limit to two typefaces.** One for headings, one for body. A second typeface should reinforce the design concept.
+- A monospace third face for code is acceptable.
+- If using a single typeface, differentiate hierarchy through weight, size, and color instead.
+
+### In Practice: Next.js + Tailwind Typography
+
+**Font setup in `app/layout.tsx`:**
+```tsx
+import { Inter, JetBrains_Mono } from "next/font/google"
+
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans" })
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" })
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+      <body className="font-sans antialiased">{children}</body>
+    </html>
+  )
+}
+```
+
+**Tailwind type scale in use (shadcn conventions):**
+```tsx
+{/* Page heading */}
+<h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Dashboard</h1>
+
+{/* Section heading */}
+<h2 className="text-2xl font-semibold tracking-tight">Recent Activity</h2>
+
+{/* Card title */}
+<h3 className="font-semibold leading-tight">Monthly Revenue</h3>
+
+{/* Body text with constrained width */}
+<p className="max-w-prose text-muted-foreground">
+  Your revenue increased 12% compared to last month.
+</p>
+
+{/* Small label */}
+<span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+  Status
+</span>
+
+{/* Tabular numbers in a data display */}
+<td className="tabular-nums text-right font-medium">$12,450.00</td>
+```
+
+---
+
+## 3. Color
+
+### Color System Structure
+
+A working palette needs three categories:
+
+1. **Neutrals (Greys):** 8-10 shades. Used for text, backgrounds, panels, form controls -- almost everything.
+2. **Primary Colors:** 1-2 colors for primary actions, navigation, and branding. 5-10 shades each.
+3. **Accent/Semantic Colors:** Red (destructive/error), yellow/amber (warning), green/emerald (success), blue (info). 5-10 shades each.
+
+### The 9-Shade System
+
+For each color, define 9 shades numbered 50-900:
+
+| Shade | Use |
+|-------|-----|
+| 50 | Subtle tinted backgrounds |
+| 100 | Hover backgrounds, light fills |
+| 200 | Active backgrounds, badges |
+| 300 | Borders, rings |
+| 400 | Placeholder text, disabled states |
+| 500 | Primary buttons, icons, links |
+| 600 | Hover on primary buttons |
+| 700 | Active/pressed states |
+| 800 | Heading text on light backgrounds |
+| 900 | Body text on light backgrounds |
+| 950 | Darkest shade for high contrast |
+
+### Color Format
+
+- **Use OKLCH** as the primary color format. It's perceptually uniform (colors at the same lightness actually look equally light), supported in all modern browsers, and used by Tailwind v4 and shadcn/ui. Format: `oklch(lightness chroma hue)`.
+- **HSL** remains a solid alternative when OKLCH tooling is unavailable. It's intuitive: adjusting lightness creates shades, adjusting saturation creates tints.
+- **Store color channels as CSS variables** for maximum flexibility:
+
+```css
+:root {
+  /* OKLCH approach (preferred) */
+  --primary: oklch(62% 0.21 260);
+
+  /* HSL approach (alternative) */
+  --primary-h: 221;
+  --primary-s: 72%;
+  --primary-l: 62%;
+  --primary-hsl: hsl(var(--primary-h) var(--primary-s) var(--primary-l));
+}
+```
+
+### Color Rules
+
+- **Use near-black and near-white, not pure.** Pure black (#000) on pure white (#fff) creates uncomfortable contrast. Use `#0a0a0a` / `#111` and `#fafafa` / `#f5f5f5` instead.
+- **Saturate your neutrals.** Add a hint of your primary hue to grey tones (keep saturation under 5% in HSB). This creates palette cohesion.
+- **Maintain consistent color temperature.** Use either warm or cool tinted neutrals, not both.
+- **Colors must differ in brightness, not just hue.** Two colors at the same lightness compete visually. Vary brightness to create distinction.
+- **Rotate hue for vibrant variants.** When creating lighter shades, rotate hue toward a brighter anchor (yellow, cyan). For darker shades, rotate toward a deeper anchor (blue, violet). This prevents washed-out pastels.
+- **Don't rely on color alone to convey meaning.** Always pair color with text, icons, or patterns for accessibility.
+- **Use `color-mix()` for dynamic variations:**
+```css
+background: color-mix(in oklch, var(--primary), transparent 95%);
+```
+
+### Dark Mode
+
+- Swap light and dark values (900 becomes foreground, 50 becomes background).
+- Don't just invert -- dark backgrounds need reduced contrast. Container brightness should differ from background by max 12%.
+- Avoid pure white text on dark backgrounds. Use near-white (e.g., `#e5e5e5`).
+- Shadows are ineffective in dark mode -- use subtle borders or lighter elevated surfaces instead.
+- Respect `prefers-color-scheme` as the default. Don't add a theme toggle unless specifically needed.
+
+### In Practice: shadcn/ui Theming
+
+**`app/globals.css` -- semantic color tokens (shadcn/ui pattern):**
+```css
+@layer base {
+  :root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.965 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.965 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.965 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --radius: 0.625rem;
+  }
+  .dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.985 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --border: oklch(0.269 0 0);
+  }
+}
+```
+
+**Dark mode toggle with `next-themes` (only add when users need manual control; system preference is the default):**
+```tsx
+// app/layout.tsx
+import { ThemeProvider } from "next-themes"
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}
+
+// components/theme-toggle.tsx
+"use client"
+import { useTheme } from "next-themes"
+import { Button } from "@/components/ui/button"
+import { Moon, Sun } from "lucide-react"
+
+export function ThemeToggle() {
+  const { setTheme, theme } = useTheme()
+  return (
+    <Button variant="ghost" size="icon"
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+      <Sun className="h-4 w-4 rotate-0 scale-100 transition-[transform,opacity] dark:-rotate-90 dark:scale-0" />
+      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-[transform,opacity] dark:rotate-0 dark:scale-100" />
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  )
+}
+```
+
+---
+
+## 4. Shadows and Depth
+
+### Shadow Principles
+
+- **Single consistent light source.** All shadows should share the same angle ratio (typically above and slightly left). Every shadow on the page must use the same offset ratio.
+- **Elevation mapping.** As elements rise: offset increases, blur grows, opacity decreases. This mimics physical light behavior.
+- **Layer multiple shadows for realism.** A single `box-shadow` looks flat. Stack 2-5 layers with geometrically increasing values. (Shadow color uses HSL below for readability; any color format works.)
+
+```css
+/* Low elevation */
+box-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.3);
+
+/* Medium elevation */
+box-shadow:
+  0 1px 2px hsl(var(--shadow-color) / 0.2),
+  0 2px 4px hsl(var(--shadow-color) / 0.2),
+  0 4px 8px hsl(var(--shadow-color) / 0.2);
+
+/* High elevation */
+box-shadow:
+  0 1px 2px hsl(var(--shadow-color) / 0.12),
+  0 2px 4px hsl(var(--shadow-color) / 0.12),
+  0 4px 8px hsl(var(--shadow-color) / 0.12),
+  0 8px 16px hsl(var(--shadow-color) / 0.12),
+  0 16px 32px hsl(var(--shadow-color) / 0.12);
+```
+
+- **Match shadow color to the environment.** Don't use pure black/grey shadows -- tint them with the background's hue for vibrant, natural depth.
+- **Shadow blur = 2x shadow distance.** A 4px vertical offset pairs with 8px blur.
+- **Elements closer to the user appear lighter.** Mimic real-world light: surfaces near the light source are brighter.
+- **Avoid shadows in dark interfaces.** They lack visual logic. Use subtle borders or surface lightness variation instead.
+- **Don't mix depth techniques.** Pick one approach (shadows, borders, or surface lightness) and use it consistently.
+- **Never animate layered shadows directly.** It's too expensive. Instead, animate `opacity` between two shadow states using pseudo-elements.
+
+### Border Radius
+
+- **Nest corner radii correctly.** Inner radius = outer radius - gap between elements. If outer is 12px and padding is 8px, inner should be 4px.
+- **Container borders need dual contrast.** They must be distinguishable from both the container's background and the page background.
+
+### In Practice: Tailwind Shadow and Depth
+
+**Elevation classes from Tailwind mapped to use cases:**
+```tsx
+{/* Flat surface — default cards */}
+<div className="rounded-lg border bg-card shadow-sm">
+
+{/* Raised — hover state, dropdown trigger */}
+<div className="rounded-lg border bg-card shadow-md hover:shadow-lg transition-shadow">
+
+{/* Floating — dropdowns, popovers, command palette */}
+<div className="rounded-xl border bg-popover shadow-xl">
+
+{/* Dialog/modal backdrop + elevated panel */}
+<div className="fixed inset-0 bg-black/50 backdrop-blur-sm">
+  <div className="rounded-xl border bg-card shadow-2xl">
+```
+
+**Nested border radius (card with inner image):**
+```tsx
+{/* Outer: rounded-xl (12px), padding: p-2 (8px), so inner = 12-8 = 4px = rounded-sm */}
+<div className="rounded-xl border bg-card p-2">
+  <img className="rounded-sm w-full" src={src} alt={alt} />
+  <div className="p-3">
+    <h3 className="font-semibold">Title</h3>
+  </div>
+</div>
+```
+
+---
+
+## 5. Visual Hierarchy
+
+### Core Principles
+
+- **Size, weight, and color communicate importance.** Primary content is larger, bolder, and higher contrast. Secondary content is smaller, lighter, and lower contrast.
+- **De-emphasize secondary content instead of over-emphasizing primary content.** It's more effective to make supporting elements quieter than to make everything louder.
+- **Semantic hierarchy != visual hierarchy.** An `<h2>` doesn't always need to look like a big heading. Style for the role the content plays in the layout, not its HTML tag.
+- **Reduce label reliance.** When context makes meaning clear, labels are redundant. "john@example.com" doesn't need an "Email:" label -- the format itself communicates.
+- **Use weight and contrast as separate levers.** Bold dark text and regular grey text occupy different hierarchy levels. Combining size + weight + color gives you three independent hierarchy controls.
+- **High contrast for important elements, low contrast for structural elements.** Draw attention to actions and content, not chrome and borders.
+
+### Visual Weight Ordering
+
+- Arrange series of elements in descending visual weight. The heaviest element sits at the outer edge.
+- Use fewer borders. Replace borders with spacing, background color differences, or shadows for cleaner separation.
+- **Accent borders (3-5px)** on one edge of a card or callout add visual interest and hierarchy without heavy separation.
+
+### Alignment
+
+- **Align everything with something.** Alignment shows that elements are related and that placement is intentional.
+- **Prefer optical alignment over mathematical.** Triangular shapes (play buttons, arrows) have visual centers that differ from their geometric centers. Trust your eyes.
+- **Measure spacing between high-contrast points.** Eyes find element edges based on contrast, not bounding boxes.
+
+---
+
+## 6. Animation and Motion
+
+### When to Animate
+
+- **Feedback:** Confirm that the system recognized an action (button press, form submit, toggle).
+- **State transitions:** Signal changes between interface modes or views.
+- **Spatial navigation:** Help users understand their position in a hierarchy (zoom = depth, slide = lateral movement).
+- **Signifiers:** Show how to interact with an element (drag direction, swipeable area).
+
+### When NOT to Animate
+
+- **High-frequency interactions.** Actions performed many times daily should feel instant -- no animation.
+- **Keyboard-initiated actions.** These should be immediate and feel connected to the input.
+- **When performance suffers.** A janky animation is worse than no animation. 60fps or nothing.
+- **Repetitive daily-use elements.** Animations seen repeatedly throughout the day become annoying.
+- **Gratuitous motion.** If it doesn't clarify interaction or explain functionality, remove it.
+
+### Easing Functions
+
+| Easing | Use For |
+|--------|---------|
+| `ease-out` | Elements entering the screen, appearing, expanding. **Default choice.** |
+| `ease-in-out` | Elements moving while already visible on screen. |
+| `ease` | Hover effects, color transitions. |
+| `linear` | Continuous/looping animations only (spinners, progress fills). |
+| `ease-in` | Elements leaving the screen. Never for elements that remain visible. |
+
+Custom curves are strongly preferred over built-in CSS easings. Example production curve: `cubic-bezier(0.32, 0.72, 0, 1)` (iOS sheet behavior, used at 500ms).
+
+### Duration Guidelines
+
+| Context | Duration |
+|---------|----------|
+| Hover effects | 100-150ms |
+| Button press feedback | ~160ms |
+| Tooltip enter/exit | ~125ms |
+| Dropdown/select open | ~180ms |
+| General UI transitions | 150-300ms |
+| Toast notifications | ~400ms |
+| Drawer/sheet open | ~500ms |
+| Hold-to-confirm (destructive) | 2000ms (safety) |
+| Hold release feedback | 200ms |
+
+- **Asymmetric timing for safety:** Slow, predictable timing for destructive actions paired with fast release feedback.
+- **Entry != exit.** Differentiate enter vs. exit animations. Entry should feel decisive; exit should feel natural.
+
+### Animation Techniques
+
+**Scale on press:** `scale(0.97)` on `:active` for instant tactile feedback.
+
+**Never scale from 0.** Start from `scale(0.9)` or higher. Even a deflated balloon has a visible shape.
+
+**Origin-aware popover:** Scale from the trigger point using `transform-origin`, not center.
+
+**Tooltip delay pattern:** First tooltip shows with delay. Subsequent tooltips while hovering appear instantly.
+
+**Blur as rescue:** When easing adjustments still feel off, add `filter: blur(2px)` during the transition.
+
+**Use `clip-path` for reveals:** Hardware-accelerated with no layout shifts. `clip-path: inset(0 0 100% 0)` to `inset(0 0 0 0)`.
+
+### Properties Safe to Animate
+
+- `transform` (translate, rotate, scale) -- GPU-accelerated
+- `opacity` -- GPU-accelerated
+- `clip-path` -- GPU-accelerated
+
+### Properties to Avoid Animating
+
+- `width`, `height`, `padding`, `margin` -- triggers layout recalculation
+- `top`, `left`, `right`, `bottom` -- triggers layout recalculation
+- `background-color` -- triggers repaint (expensive)
+
+### Performance Ranking
+
+1. CSS Animations/Transitions (best -- runs off main thread)
+2. Web Animations API (good -- survives main-thread congestion)
+3. JavaScript `requestAnimationFrame` (worst -- lags when browser is busy)
+
+### Accessibility
+
+Always respect `prefers-reduced-motion`:
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+### In Practice: Tailwind + Framer Motion
+
+**Button with press feedback (CSS only, Tailwind).** Duration matches the ~160ms guideline (Tailwind's closest: `duration-150`):
+```tsx
+<button className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground
+  transition-[background-color,transform] duration-150 ease-out
+  hover:bg-primary/90
+  active:scale-[0.97]">
+  Save Changes
+</button>
+```
+
+**Animated dialog with Framer Motion + shadcn:**
+```tsx
+"use client"
+import { motion, AnimatePresence } from "motion/react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+
+export function AnimatedDialog({ open, onOpenChange, children }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <AnimatePresence>
+        {open && (
+          <DialogContent forceMount asChild>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+            >
+              {children}
+            </motion.div>
+          </DialogContent>
+        )}
+      </AnimatePresence>
+    </Dialog>
+  )
+}
+```
+
+**Staggered list entrance:**
+```tsx
+import { motion } from "motion/react"
+
+export function StaggeredList({ items }) {
+  return (
+    <ul className="space-y-2">
+      {items.map((item, i) => (
+        <motion.li key={item.id}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.05, duration: 0.25, ease: "easeOut" }}
+          className="rounded-lg border bg-card p-4"
+        >
+          {item.label}
+        </motion.li>
+      ))}
+    </ul>
+  )
+}
+```
+
+**Skeleton loading with Tailwind animate-pulse:**
+```tsx
+function CardSkeleton() {
+  return (
+    <div className="rounded-lg border bg-card p-6 space-y-4">
+      <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+      <div className="h-3 w-full animate-pulse rounded bg-muted" />
+      <div className="h-3 w-4/5 animate-pulse rounded bg-muted" />
+    </div>
+  )
+}
+```
+
+---
+
+## 7. Components
+
+### Component Philosophy
+
+- **Copy and own, don't install.** The shadcn/ui model: components are source code you paste into your project and customize, not opaque npm packages. You own the code.
+- **Build on accessible primitives.** Use headless UI libraries (Radix, Base UI, React Aria) for behavior, then style with your own design tokens.
+- **Compound component pattern.** Break complex components into composable parts: `Dialog.Root`, `Dialog.Trigger`, `Dialog.Content`, `Dialog.Title`. Each part is independently addressable.
+- **Expose component APIs via CSS variables.** Components accept customization through CSS custom properties, not endless prop variants:
+```css
+.button { background: var(--button-bg, var(--primary)); }
+```
+
+### Component Design Tokens (shadcn/ui model)
+
+See the full token set in [Section 3: In Practice](#in-practice-shadcnui-theming). The standard semantic tokens are: `--background`, `--foreground`, `--card`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`, `--radius` (each with a `-foreground` counterpart where applicable). Values use OKLCH format.
+
+### Button Patterns
+
+- **Horizontal padding = 2x vertical padding.** This creates the recognizable button shape.
+- **Default height: 32-36px** for standard density. 40px for comfortable.
+- **Use `min-width`** instead of fixed `width` to accommodate varying label lengths.
+- **Labels describe outcomes, not processes.** "Save" not "Click to save your changes."
+- **Primary, Secondary, Ghost, Destructive** -- four variants cover nearly all cases.
+
+### Form Patterns
+
+- **Associate every input with a `label`** using `for`/`id`.
+- **Use `fieldset` and `legend`** for grouped inputs.
+- **Input heights must match button heights.** When buttons and inputs appear side by side in inline forms, they must align perfectly. Use the same height token (32-36px default).
+- **Form elements must inherit font:** `input, button, textarea, select { font: inherit; }`
+- **Display errors inline** near the field, not in distant toasts. Connect error messages to inputs with `aria-describedby`.
+- **Prevent errors rather than reporting them.** Use constraints, good defaults, and real-time validation.
+- **Placeholder is not a label.** Placeholders disappear on focus. Use floating labels or persistent labels above the field.
+- **Apply `autocomplete` attributes** for familiar fields (name, email, address).
+
+### Icons
+
+- **Standard sizes:** 16px (inline/dense), 20px (default), 24px (prominent). Decorative icons in empty states or hero sections can be larger (32-48px).
+- **Stroke width:** 1.5px-2px. Match the visual weight of your text.
+- **Consistent `viewBox`:** All icons in a set should share the same viewBox (typically `0 0 24 24`).
+- **Optical alignment with text:** Use `display: inline-flex; align-items: center` and occasionally a -1px to -2px vertical offset for visual centering.
+- **Lower icon contrast when paired with text.** Icons appear visually heavier than text at the same color. Reduce icon opacity or use `text-muted-foreground` color.
+- Use `aria-hidden="true"` on decorative icons. Provide `aria-label` on icon-only buttons.
+
+### Tables and Data Display
+
+- **Right-align numbers and currency.** Left-align text. This keeps decimal points aligned for scannability.
+- **Use `font-variant-numeric: tabular-nums`** so digits maintain equal width across rows.
+- **Use semantic markup:** `<table>`, `<thead>`, `<tbody>`, `<th scope="col">`, `<caption>`.
+- **Responsive pattern:** Wrap tables in a horizontally scrollable container on small screens:
+```css
+.table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+```
+- **Zebra striping** (alternating row backgrounds) or **horizontal dividers** improve readability on wide tables.
+- **Sticky headers:** `thead th { position: sticky; top: 0; }` for long scrollable tables.
+
+### Loading States
+
+- **Delay spinners by 400ms.** If the operation completes faster, the user never sees loading UI. This prevents flash-of-loading.
+- **Skeleton screens** over spinners for content-heavy layouts. Animate with subtle pulsing opacity (`animate-pulse`), not harsh gradient sweeps.
+- **Skeletons must match the layout** of the content they replace to prevent layout shift.
+- **Optimistic updates:** Show the expected result immediately, roll back on error. This is the gold standard for perceived performance.
+- **Progress indicators** for operations over 2-3 seconds. Provide determinate progress when possible (percentage), indeterminate when not.
+
+### Modals and Overlays
+
+- **Backdrop:** Semi-transparent overlay (`rgba(0,0,0,0.5)` or `backdrop-filter: blur(4px)`).
+- **Focus trapping:** Tab key must cycle within the modal. Focus the first interactive element on open, restore focus to the trigger on close.
+- **Prevent body scroll:** Use `overflow: hidden` on `<body>` or `overscroll-behavior: contain` on the modal. Note: `overscroll-behavior: contain` also prevents pull-to-refresh on mobile -- test this trade-off.
+- **Escape to close:** Always support keyboard dismissal.
+- **`isolation: isolate`** on the app root prevents z-index conflicts with portaled modals.
+
+### Empty States
+
+- Treat empty states as design opportunities, not afterthoughts.
+- Provide clear guidance on what to do next.
+- Use illustration or subtle animation to make the state feel intentional.
+
+### Error Pages
+
+- Treat 404 and error pages as craft opportunities.
+- Maintain the site's personality and navigation.
+- Provide helpful next steps (search, popular pages, home link).
+
+### In Practice: shadcn/ui Component Patterns
+
+**Form with validation (React Hook Form + Zod + shadcn):**
+```tsx
+"use client"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+
+const schema = z.object({
+  email: z.string().email("Enter a valid email"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+})
+
+export function SignupForm() {
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(schema),
+  })
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="name">Name</Label>
+        <Input id="name" {...register("name")} />
+        {errors.name && (
+          <p className="text-sm text-destructive">{errors.name.message}</p>
+        )}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" type="email" autoComplete="email" {...register("email")} />
+        {errors.email && (
+          <p className="text-sm text-destructive">{errors.email.message}</p>
+        )}
+      </div>
+      <Button type="submit" className="w-full">Create account</Button>
+    </form>
+  )
+}
+```
+
+**Empty state component:**
+```tsx
+import { Inbox } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+export function EmptyState({ title, description, action, onAction }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+      <Inbox className="h-10 w-10 text-muted-foreground/50" />
+      <h3 className="mt-4 font-semibold">{title}</h3>
+      <p className="mt-2 text-sm text-muted-foreground max-w-sm">{description}</p>
+      {action && (
+        <Button onClick={onAction} className="mt-4" size="sm">{action}</Button>
+      )}
+    </div>
+  )
+}
+```
+
+**Data table with shadcn (key patterns):**
+```tsx
+import {
+  Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow,
+} from "@/components/ui/table"
+
+export function InvoiceTable({ invoices }) {
+  return (
+    <div className="rounded-lg border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Invoice</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {invoices.map(inv => (
+            <TableRow key={inv.id}>
+              <TableCell className="font-medium">{inv.id}</TableCell>
+              <TableCell>
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5
+                  text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  {inv.status}
+                </span>
+              </TableCell>
+              <TableCell className="text-right tabular-nums">{inv.amount}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+```
+
+**Loading with delayed spinner (prevents flash):**
+```tsx
+"use client"
+import { useEffect, useState } from "react"
+import { Loader2 } from "lucide-react"
+
+export function DelayedSpinner({ delay = 400 }) {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setShow(true), delay)
+    return () => clearTimeout(timer)
+  }, [delay])
+
+  if (!show) return null
+  return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+}
+```
+
+---
+
+## 8. Responsive Design
+
+### Breakpoint Strategy
+
+Define breakpoints based on **content needs**, not device names. Use the fewest breakpoints necessary.
+
+| Token | Width | Typical Use |
+|-------|-------|-------------|
+| sm | 640px (40rem) | Phone landscape |
+| md | 768px (48rem) | Tablet portrait |
+| lg | 1024px (64rem) | Tablet landscape / small laptop |
+| xl | 1280px (80rem) | Desktop |
+| 2xl | 1536px (96rem) | Large desktop |
+
+### Responsive Rules
+
+- **Design mobile-first.** Start with the smallest layout and expand.
+- **Use `rem` for breakpoint values** so layouts respond to user font size preferences.
+- **Use container queries for component-level responsiveness.** Components should adapt to their container, not the viewport:
+```css
+@container (min-inline-size: 400px) {
+  .card { flex-direction: row; }
+}
+```
+- **Prefer intrinsic sizing over breakpoints.** Use `auto-fill`/`auto-fit` grids, `flex-wrap`, and `clamp()` to create layouts that adapt without media queries.
+- **Never hide content solely because the screen is small.** Small screens don't mean users need less information.
+- **Optimize line length.** Add breakpoints when text exceeds 75 characters per line.
+- **Test for text readability at 200% zoom** (WCAG requirement).
+- **Check interaction modes.** Use `@media (hover: hover)` and `@media (pointer: coarse)` to adapt for touch vs. mouse:
+```css
+@media (pointer: coarse) {
+  .button { min-height: 48px; }
+}
+```
+
+### In Practice: Tailwind Responsive Patterns
+
+**Responsive card layout (mobile stack -> desktop grid):**
+```tsx
+<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  {items.map(item => <Card key={item.id} {...item} />)}
+</div>
+```
+
+**Navigation that adapts (sidebar on desktop, sheet on mobile):**
+```tsx
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
+import { Menu } from "lucide-react"
+
+export function AppShell({ nav, children }) {
+  return (
+    <div className="flex min-h-screen">
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex w-64 flex-col border-r p-4">{nav}</aside>
+
+      {/* Mobile sheet */}
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="lg:hidden fixed top-4 left-4 z-40">
+            <Menu className="h-5 w-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 p-4">{nav}</SheetContent>
+      </Sheet>
+
+      <main className="flex-1 p-6 lg:p-8">{children}</main>
+    </div>
+  )
+}
+```
+
+**Container query with Tailwind (component adapts to parent width):**
+```tsx
+<div className="@container">
+  <div className="flex flex-col @md:flex-row @md:items-center gap-4">
+    <img className="w-full @md:w-48 rounded-lg" src={src} alt={alt} />
+    <div className="space-y-2">
+      <h3 className="font-semibold">{title}</h3>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  </div>
+</div>
+```
+
+---
+
+## 9. Accessibility
+
+### Contrast Ratios (WCAG 2.1)
+
+| Element | AA Minimum | AAA Minimum |
+|---------|-----------|-------------|
+| Normal text | 4.5:1 | 7:1 |
+| Large text (18px+ bold, 24px+) | 3:1 | 4.5:1 |
+| UI components and icons | 3:1 | -- |
+| Input borders | 3:1 | -- |
+
+### Keyboard Navigation
+
+- All interactive elements must be keyboard-accessible.
+- Provide **visible focus styles** on every interactive element. Use `:focus-visible` (not `:focus`) to show outlines only for keyboard users:
+```css
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+```
+- **Tab order must match visual order.** Never use CSS Grid/Flexbox `order` to reorder content in a way that breaks keyboard navigation.
+- Implement **skip links** to bypass navigation.
+- **Remove invisible focusable elements** from the tab order.
+- Support `Escape` to close overlays, `Enter`/`Space` to activate buttons.
+
+### Semantic HTML
+
+- Use landmark elements: `<header>`, `<nav>`, `<main>`, `<footer>`, `<aside>`.
+- Use proper heading hierarchy: one `<h1>` per page, no skipped levels.
+- Use `<button>` for actions, `<a>` for navigation.
+- Use `<ul>`/`<ol>` for lists, `<table>` for tabular data.
+- Include `lang` attribute on `<html>`.
+- Provide unique, descriptive `<title>` for each page.
+
+### Images and Media
+
+- Every `<img>` needs an `alt` attribute. Decorative images get `alt=""`.
+- Add `width` and `height` to images to prevent layout shift.
+- Disable autoplay on audio and video.
+- Provide captions for video, transcripts for audio.
+- Ensure media controls are keyboard-accessible.
+
+### Forms
+
+- Never rely on color alone for error/warning/success states. Pair with text, icons, or patterns.
+- Use `aria-describedby` to connect error messages to inputs.
+- Display form errors in a list above the form for screen reader users.
+- Make error messages actionable: state the problem and suggest the fix.
+
+### Motion
+
+- Respect `prefers-reduced-motion`. Reduce or remove non-essential animation.
+- Avoid content that flashes more than 3 times per second (seizure risk).
+- Allow users to pause any auto-playing content.
+
+### Touch Targets
+
+- **Minimum touch target: 44x44px** (WCAG), 48x48px preferred (Material Design).
+- Separate interactive elements by at least 8px to prevent accidental taps.
+- **Expand hit areas beyond visual size** using `::before` pseudo-elements positioned absolutely.
+
+---
+
+## 10. Performance
+
+### Core Web Vitals Thresholds
+
+| Metric | Good | Description |
+|--------|------|-------------|
+| LCP | < 2.5s | Largest Contentful Paint (loading) |
+| INP | < 200ms | Interaction to Next Paint (responsiveness) |
+| CLS | < 0.1 | Cumulative Layout Shift (visual stability) |
+
+### Performance Rules
+
+- **Set `width` and `height` on all images** to prevent layout shift.
+- **Use `loading="lazy"` on below-fold images.**
+- **Apply `max-width: 100%` and `display: block`** to all media elements.
+- **Subset fonts** to include only needed characters. Reduce payload.
+- **Use `font-display: swap`** to prevent invisible text during font loading.
+- **Prefer CSS animations over JavaScript.** CSS transitions run off the main thread.
+- **Only animate `transform`, `opacity`, and `clip-path`** for 60fps performance.
+- **Use `will-change: transform`** sparingly to hint GPU acceleration.
+- **Use `content-visibility: auto`** for off-screen content to skip rendering.
+- **Use `scrollbar-gutter: stable`** to prevent layout shift when scrollbars appear.
+- Avoid `transition: all`. Be explicit about which properties animate.
+
+### Image Optimization
+
+- Serve modern formats: WebP, AVIF with fallbacks.
+- Use responsive images: `srcset` and `sizes` attributes.
+- Set explicit dimensions to reserve space: `aspect-ratio: 16/9`.
+- Use `object-fit: cover` to handle unexpected aspect ratios.
+
+### In Practice: Next.js Performance
+
+**Next.js Image component (handles srcset, WebP/AVIF, lazy loading):**
+```tsx
+import Image from "next/image"
+
+// Replaces <img> — automatically optimized, lazy-loaded, prevents CLS
+<Image
+  src="/hero.jpg"
+  alt="Product screenshot"
+  width={1200}
+  height={630}
+  className="rounded-lg"
+  priority  // Add for above-fold hero images only
+/>
+
+// For fill mode (unknown dimensions):
+<div className="relative aspect-video">
+  <Image src={url} alt={alt} fill className="object-cover rounded-lg" />
+</div>
+```
+
+**Font optimization in Next.js (automatic subsetting + swap):**
+```tsx
+// next/font handles subsetting, font-display: swap, and self-hosting automatically
+import { Inter } from "next/font/google"
+const inter = Inter({ subsets: ["latin"] })
+// Generates: font-display: swap, optimal subsetting, no layout shift
+```
+
+**Dynamic imports for heavy components:**
+```tsx
+import dynamic from "next/dynamic"
+
+// Chart library only loads when needed, with skeleton fallback
+const Chart = dynamic(() => import("@/components/chart"), {
+  loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted" />,
+  ssr: false,
+})
+```
+
+**Optimistic update pattern (React):**
+```tsx
+"use client"
+import { useOptimistic } from "react"
+
+function TodoList({ todos, addTodo }) {
+  const [optimisticTodos, addOptimistic] = useOptimistic(
+    todos,
+    (state, newTodo) => [...state, { ...newTodo, pending: true }]
+  )
+
+  async function handleAdd(formData) {
+    const todo = { text: formData.get("text"), id: crypto.randomUUID() }
+    addOptimistic(todo)       // Show immediately
+    await addTodo(todo)       // Server action — rolls back on error
+  }
+
+  return (
+    <ul className="space-y-1">
+      {optimisticTodos.map(todo => (
+        <li key={todo.id} className={todo.pending ? "opacity-50" : ""}>
+          {todo.text}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+---
+
+## 11. UX Psychology
+
+### Key Laws
+
+**Fitts's Law.** The time to reach a target depends on distance and size. Make important actions large and close to the cursor. Reduce distance to common targets. Edge/corner placement in desktop interfaces gives "infinite" dimension along one axis.
+
+**Hick's Law.** Decision time increases with the number and complexity of choices. Minimize choices at each step. Break complex tasks into smaller decisions. Use progressive disclosure. Recommend defaults.
+
+**Miller's Law.** Working memory holds roughly 7 (+/-2) items. Chunk information into digestible groups. Don't use this as an excuse to limit UI to 7 items -- use it to inform grouping strategy.
+
+**Jakob's Law.** Users spend most of their time on other sites. They expect yours to work the same way. Follow platform conventions. Don't innovate on interaction patterns without good reason.
+
+**Doherty Threshold.** Productivity soars when system response time is under 400ms. Use skeleton screens, optimistic updates, and loading indicators to maintain perceived speed.
+
+**Aesthetic-Usability Effect.** Users perceive attractive designs as more usable. Invest in visual polish -- it directly affects perceived quality and user patience with issues.
+
+**Von Restorff Effect (Isolation Effect).** The item that stands out from a group is most remembered. Use visual distinctiveness for the most important element (CTA, key metric).
+
+**Peak-End Rule.** People judge experiences by the peak moment and the ending, not the average. Invest disproportionately in climactic moments and final impressions.
+
+**Zeigarnik Effect.** People remember incomplete tasks better than complete ones. Progress bars and step indicators use this to drive completion.
+
+**Tesler's Law (Conservation of Complexity).** Every system has irreducible complexity. The question is who bears it -- the user or the system. Absorb complexity in the implementation so the interface stays simple.
+
+**Postel's Law.** Be liberal in what you accept, strict in what you produce. Accept varied input formats. Output clean, consistent formats.
+
+### Additional Laws
+
+**Choice Overload.** Too many options overwhelm users and reduce satisfaction. Enable filtering, recommend defaults, break complex decisions into steps.
+
+**Goal-Gradient Effect.** People accelerate as they approach a goal. Show progress bars, pre-fill partial progress, and keep multi-step processes visible.
+
+**Serial Position Effect.** Users remember the first and last items in a list best. Place key navigation items at the beginning and end. Put less important items in the middle.
+
+**Pareto Principle (80/20).** 80% of usage comes from 20% of features. Identify and optimize the critical 20%.
+
+**Selective Attention (Banner Blindness).** Users ignore anything that looks like an ad. Don't style real content like advertisements.
+
+### Gestalt Principles
+
+- **Proximity.** Objects near each other are perceived as a group.
+- **Similarity.** Objects that look alike are perceived as related.
+- **Continuity.** Elements arranged in a line or curve are perceived as related.
+- **Closure.** The mind completes incomplete shapes.
+- **Common Region.** Elements within the same boundary are perceived as a group.
+- **Figure-Ground.** The mind separates foreground from background.
+
+---
+
+## 12. Design Tokens
+
+### Token Architecture
+
+Organize tokens in layers:
+
+1. **Primitive tokens.** Raw values: `--blue-500: #3b82f6`. These are the palette.
+2. **Semantic tokens.** Purpose-mapped: `--color-primary: var(--blue-500)`. These encode meaning.
+3. **Component tokens.** Scoped: `--button-bg: var(--color-primary)`. These allow component-level overrides.
+
+### Standard Token Categories
+
+**Color:** background, foreground, primary, secondary, muted, accent, destructive, border, input, ring, plus semantic (success, warning, info, error).
+
+**Typography:** font-family (sans, heading, mono), font sizes (xs through 4xl), font weights (normal, medium, semibold, bold), line heights, letter spacings.
+
+**Spacing:** Based on 4px grid (see Section 1).
+
+**Borders:** radius (sm, md, lg, xl, full), width (1px, 2px), color (from color tokens).
+
+**Shadows:** sm, md, lg, xl, 2xl (see Section 4).
+
+**Motion:** Duration (fast: 150ms, normal: 250ms, slow: 500ms), easing functions.
+
+**Z-index:** Layered scale: base(0), dropdown(1000), sticky(1100), modal(1200), popover(1300), toast(1400).
+
+### CSS Custom Properties Pattern
+
+```css
+:root {
+  /* Primitives */
+  --gray-50: #fafafa;
+  --gray-900: #171717;
+  --blue-500: #3b82f6;
+
+  /* Semantic */
+  --background: var(--gray-50);
+  --foreground: var(--gray-900);
+  --primary: var(--blue-500);
+
+  /* Component */
+  --button-bg: var(--primary);
+  --button-text: white;
+  --card-bg: var(--background);
+  --card-border: var(--gray-200);
+}
+
+.dark {
+  --background: var(--gray-900);
+  --foreground: var(--gray-50);
+  --primary: var(--blue-400);
+}
+```
+
+### Responsive Tokens
+
+Change token values at breakpoints without touching components:
+
+```css
+:root {
+  --space-section: 2rem;
+  --text-hero: 2rem;
+}
+@media (min-width: 768px) {
+  :root {
+    --space-section: 4rem;
+    --text-hero: 3.5rem;
+  }
+}
+```
+
+---
+
+## 13. Polish and Craft
+
+### What Separates Good from Great
+
+The difference between amateur and professional design is the accumulation of hundreds of small, intentional decisions. No single detail transforms a product, but their aggregate creates the feeling of quality users describe as "this just feels right."
+
+### Design Principles to Live By
+
+1. **Unified.** Every piece contributes to a coherent system. No isolated features.
+2. **Universal.** Products should be welcoming and accessible to a global community.
+3. **Iconic.** Be focused in both design and function. Speak boldly and clearly.
+4. **Conversational.** Motion breathes life into products. Communicate in easily understood ways.
+5. **Thorough to the last detail.** Care about every screen -- error pages, empty states, footers.
+6. **As little design as possible.** Good design is as little design as possible. Less, but better.
+7. **Make the hard work invisible.** Do the hard work to make things simple for users.
+8. **Don't make me think.** Interfaces should be self-evident. If it needs explanation, it needs redesign.
+
+### Amateur vs Professional Patterns
+
+| Amateur | Professional |
+|---------|-------------|
+| Arbitrary animation duration | Deliberate durations: 100-300ms range, scaled to trigger size |
+| Layout shifts during state changes | Hidden pseudo-elements reserve bold text width |
+| Hard borders on images | Inset `box-shadow` with semi-transparent color |
+| Hit targets match visual size exactly | Invisible `::before` expands clickable area |
+| Neglects error pages, empty states, footers | Every screen is a craft opportunity |
+| Hover effects fire on touch devices | `@media (hover: hover)` isolates hover states |
+| CSS transitions fire during theme changes | Disable transitions, apply theme, re-enable one frame later |
+| Same animation for all interactions | Minimize motion for frequent actions; reserve it for meaningful state changes |
+| Dropdowns open on `click` | Trigger on `mousedown` for perceived immediacy |
+| Waits for server to update UI | Optimistic updates with rollback on error |
+
+### Finishing Touches
+
+- **Accent borders.** A 3-5px colored border on one side of a card adds visual interest without heaviness.
+- **Background decoration.** Subtle gradients, dots, or grid patterns prevent flat empty areas.
+- **Custom selection colors.** Style `::selection` for brand consistency (but ensure sufficient contrast).
+- **SVG favicons with dark mode.** Use `prefers-color-scheme` media query inside SVG for adaptive favicons.
+- **Custom scrollbars** where appropriate (use sparingly, ensure usability).
+
+### In Practice: Polish Patterns in React + Tailwind
+
+**Accent border card (left-side colored bar):**
+```tsx
+<div className="rounded-lg border-l-4 border-l-blue-500 bg-card p-4 shadow-sm">
+  <h3 className="font-semibold">New deployment</h3>
+  <p className="text-sm text-muted-foreground">Production build completed in 42s.</p>
+</div>
+```
+
+**Image with natural inset border (no hard edges):**
+```tsx
+<div className="relative overflow-hidden rounded-lg">
+  <img src={src} alt={alt} className="w-full" />
+  <div className="absolute inset-0 rounded-lg ring-1 ring-inset ring-black/5" />
+</div>
+```
+
+**Hover-only effects isolated from touch (Tailwind):**
+```tsx
+<button className="rounded-lg bg-secondary px-4 py-2
+  transition-colors
+  hover:[@media(hover:hover)]:bg-secondary/80
+  active:scale-[0.97]">
+  Action
+</button>
+```
+
+**Custom selection color in globals.css:**
+```css
+::selection { background-color: oklch(0.8 0.1 250); color: oklch(0.2 0 0); }
+```
+
+**Skip link for keyboard users:**
+```tsx
+<a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4
+  focus:z-50 focus:rounded-lg focus:bg-background focus:px-4 focus:py-2 focus:text-sm
+  focus:shadow-lg focus:ring-2 focus:ring-ring">
+  Skip to content
+</a>
+<main id="main">{children}</main>
+```
+
+**Responsive SVG favicon with dark mode (`app/icon.svg`):**
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    circle { fill: #111 }
+    @media (prefers-color-scheme: dark) { circle { fill: #eee } }
+  </style>
+  <circle cx="16" cy="16" r="14" />
+</svg>
+```
+
+---
+
+## 14. Microcopy and UX Writing
+
+### Core Principles
+
+- **Brevity wins.** Button labels should be 1-3 words. "Save" not "Click to save your changes." "Copy" not "Copy this text to your clipboard."
+- **Labels describe outcomes, not processes.** "Join" not "Submit your registration." "Delete" not "Permanently remove this item from the database."
+- **Action-oriented language.** CTAs use verbs: "Join waitlist," "Get started," "Continue." Never noun phrases.
+- **Match copy weight to action weight.** Destructive actions warrant more serious copy. A delete confirmation should be weightier than a toggle label.
+- **Progressive disclosure applies to copy too.** Reveal information in digestible steps, not all at once.
+
+### Button and CTA Labels
+
+| Pattern | Example |
+|---------|---------|
+| Single-word verbs | Save, Copy, Delete, Join, Share |
+| Short phrases | Join waitlist, Get started, Learn more |
+| State-changing labels | Copy -> Copied, Save -> Saved, Send -> Sent |
+| Directional navigation | Previous / Next, Back / Continue |
+
+### Loading and Progress States
+
+- **Three-state progression:** "Thinking..." -> "Generating..." -> "Done"
+- **Describe what the system is doing**, not what the user should do.
+- **Use ellipsis for ongoing states** (Saving..., Loading...) and none for completion (Done, Saved).
+- **Progressive specificity:** Start abstract ("Processing..."), end concrete ("Done").
+
+### Error Messages
+
+- **Prevent errors rather than reporting them.** Real-time validation beats post-submit error lists.
+- **State the problem, suggest the fix.** "Password must include a number" not "Invalid password."
+- **Pair text with visual feedback.** Shake animations, red borders, and inline messages together.
+- **Use plain language.** "That email is already registered" not "Error 409: Conflict."
+
+### Success and Confirmation
+
+- **Brief and self-dismissing.** Toast: "Copied" with auto-dismiss after 1.5-2s.
+- **Warm at completion.** "You're all set" is better than "Operation completed successfully."
+- **Suggest next steps.** After confirmation, offer a relevant follow-up action.
+
+### Tone Guidelines
+
+- **Conversational but precise.** Informal yet technically correct.
+- **Confident, not hedged.** "This will delete your account" not "This might delete your account."
+- **Instructional at input stages, celebratory at completion.**
+- **Never patronizing.** Avoid exclamation marks on routine actions. Save them for genuine milestones.
+
+---
+
+## 15. Defensive CSS
+
+Patterns that prevent common layout breakage:
+
+```css
+/* Prevent flex items from overflowing */
+.flex-child { min-width: 0; overflow-wrap: break-word; }
+
+/* Prevent images from breaking layout */
+img { max-width: 100%; display: block; object-fit: cover; }
+
+/* Prevent scroll chaining through modals */
+.modal { overscroll-behavior: contain; }
+
+/* Always use auto overflow, not scroll */
+.scrollable { overflow-y: auto; }
+
+/* Reserve scrollbar space to prevent layout shift */
+.page { scrollbar-gutter: stable; }
+
+/* Use min-height, not height, for variable content */
+.hero { min-height: 400px; } /* NOT height: 400px */
+
+/* Use min-width, not width, for buttons */
+.button { min-width: 100px; } /* NOT width: 100px */
+
+/* Fallback backgrounds for failed images */
+.card-image { background-color: var(--muted); }
+
+/* Fallback for CSS variables */
+.element { width: var(--sidebar-width, 250px); }
+
+/* Prevent flex containers from hiding overflow */
+.grid-child { min-width: 0; }
+
+/* Use auto-fill to prevent stretching with few items */
+grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+
+/* Sticky elements in grid need align-self */
+.sidebar { align-self: start; position: sticky; top: 1rem; }
+
+/* Single-line text truncation */
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Multi-line text truncation (e.g., 3 lines) */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* Safe area padding for full-bleed layouts on notched devices */
+.safe-area { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+
+/* Never use arbitrary z-index values. Always map to a token layer. */
+/* z-base: 0, z-dropdown: 1000, z-sticky: 1100, z-modal: 1200, z-popover: 1300, z-toast: 1400 */
+```
+
+---
+
+## 16. Modern CSS Reset
+
+A sensible starting point for any project:
+
+```css
+/* 1. Use border-box for everything */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* 2. Remove default margins */
+* { margin: 0; }
+
+/* 3. Enable smooth keyword animations (respects motion prefs) */
+@media (prefers-reduced-motion: no-preference) {
+  html { interpolate-size: allow-keywords; }
+}
+
+/* 4. Accessible body defaults */
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 5. Responsive media */
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* 6. Form elements inherit fonts */
+input, button, textarea, select { font: inherit; }
+
+/* 7. Prevent text overflow */
+p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
+
+/* 8. Better text wrapping */
+p { text-wrap: pretty; }
+h1, h2, h3, h4, h5, h6 { text-wrap: balance; }
+
+/* 9. Root stacking context */
+#root, #__next { isolation: isolate; }
+```
+
+---
+
+## Quick Reference: Common Values
+
+| Property | Recommended Default |
+|----------|-------------------|
+| Body font size | 16px (1rem) |
+| Body line height | 1.5 |
+| Heading line height | 1.1 - 1.25 |
+| Max content width | 65ch |
+| Spacing base unit | 4px |
+| Border radius (sm) | 4px |
+| Border radius (md) | 8px |
+| Border radius (lg) | 12px |
+| Border radius (full) | 9999px |
+| Border radius (shadcn default) | 0.625rem (10px) |
+| Transition (fast) | 150ms ease-out |
+| Transition (normal) | 250ms ease-out |
+| Transition (slow) | 500ms ease-out |
+| Min touch target | 44px (48px preferred) |
+| Min contrast (text) | 4.5:1 |
+| Min contrast (large text) | 3:1 |
+| Min contrast (UI elements) | 3:1 |
+| Max line length | 60-75 characters optimal, 80 max |
+| Button/input height | 32-36px (standard), 40px (comfortable) |
+| Icon sizes | 16px (dense), 20px (default), 24px (prominent) |
+| Button padding ratio | 2x horizontal : 1x vertical |
+| Shadow blur ratio | 2x the offset distance |
+| Spinner delay | 400ms before showing |
+| System response target | < 400ms (Doherty Threshold) |
+| Color format | OKLCH (preferred), HSL (alternative) |
+| Focus ring | 2px solid, 2px offset |
+| Z-index layers | dropdown:1000, sticky:1100, modal:1200, popover:1300, toast:1400 |
