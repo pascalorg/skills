@@ -3,3 +3,4 @@ skills-lock.json
 .agents/
 .claude/
 *.traineddata
+.DS_Store

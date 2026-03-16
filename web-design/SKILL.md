@@ -28,8 +28,10 @@ Use this skill whenever you are building, reviewing, or improving a web interfac
 12. [Design Tokens](#12-design-tokens)
 13. [Polish and Craft](#13-polish-and-craft)
 14. [Microcopy and UX Writing](#14-microcopy-and-ux-writing)
-15. [Defensive CSS](#15-defensive-css)
-16. [Modern CSS Reset](#16-modern-css-reset)
+15. [AI Slop Prevention](#15-ai-slop-prevention)
+16. [Advanced Craft](#16-advanced-craft)
+17. [Defensive CSS](#17-defensive-css)
+18. [Modern CSS Reset](#18-modern-css-reset)
 
 ---
 
@@ -519,6 +521,48 @@ box-shadow:
 - **Prefer optical alignment over mathematical.** Triangular shapes (play buttons, arrows) have visual centers that differ from their geometric centers. Trust your eyes.
 - **Measure spacing between high-contrast points.** Eyes find element edges based on contrast, not bounding boxes.
 
+### Four-Level Text Hierarchy
+
+Every interface needs exactly four text levels. More creates noise, fewer creates flatness:
+
+```tsx
+{/* Level 1: Primary — the main content the user came to see */}
+<p className="text-foreground">Invoice #1234 — $2,400.00</p>
+
+{/* Level 2: Secondary — supporting info that adds context */}
+<p className="text-muted-foreground">Due March 15, 2026</p>
+
+{/* Level 3: Tertiary — metadata, timestamps, IDs */}
+<span className="text-xs text-muted-foreground/70">Created 2 days ago</span>
+
+{/* Level 4: Muted — disabled, placeholder, non-essential */}
+<span className="text-xs text-muted-foreground/50">Optional</span>
+```
+
+### Surface Elevation (Dark Mode Depth)
+
+In dark mode, shadows are invisible. Instead, use lightness shifts to create depth. Each elevated layer gets a few percentage points brighter:
+
+```tsx
+{/* Level 0: Page background */}
+<div className="bg-background">                        {/* darkest */}
+  {/* Level 1: Card surface */}
+  <div className="bg-card">                             {/* slightly lighter */}
+    {/* Level 2: Dropdown / popover on top of card */}
+    <div className="bg-popover">                         {/* lighter still */}
+    </div>
+  </div>
+</div>
+```
+
+The lightness difference between levels should be subtle (2-5% in OKLCH lightness). Larger jumps fragment the interface into disconnected "worlds."
+
+### Quality Checks
+
+- **Squint test.** Blur your eyes and look at the page. Hierarchy should still be visible -- headings distinct from body, primary actions distinct from secondary.
+- **Swap test.** If you replaced the typeface with a system font, would the design still hold? If not, the hierarchy depends on the font, not the structure.
+- **Grayscale test.** Convert to grayscale. If elements that were distinct now merge, you're relying on hue alone (an accessibility failure).
+
 ---
 
 ## 6. Animation and Motion
@@ -580,6 +624,15 @@ Custom curves are strongly preferred over built-in CSS easings. Example producti
 **Blur as rescue:** When easing adjustments still feel off, add `filter: blur(2px)` during the transition.
 
 **Use `clip-path` for reveals:** Hardware-accelerated with no layout shifts. `clip-path: inset(0 0 100% 0)` to `inset(0 0 0 0)`.
+
+### Staging and Choreography (from Disney's 12 Principles)
+
+- **One focal point at a time.** Only one element should animate prominently. If two things move simultaneously, the eye doesn't know where to look.
+- **Context menus animate on exit only, not entrance.** They should appear instantly and animate away.
+- **Squash and stretch range: 0.95-1.05 scale.** Anything beyond looks cartoonish in UI.
+- **Stagger delays: max 50ms per item.** Longer stagger feels sluggish. For a 5-item list: 0ms, 50ms, 100ms, 150ms, 200ms.
+- **Dim backgrounds on overlays.** Darkened backdrops direct focus to the foreground element.
+- **Use spring physics for bounce-and-settle effects.** Don't fake it with easing curves. Framer Motion `type: "spring"` with `stiffness: 300, damping: 20` is a good starting point.
 
 ### Properties Safe to Animate
 
@@ -697,6 +750,13 @@ function CardSkeleton() {
 - **Copy and own, don't install.** The shadcn/ui model: components are source code you paste into your project and customize, not opaque npm packages. You own the code.
 - **Build on accessible primitives.** Use headless UI libraries (Radix, Base UI, React Aria) for behavior, then style with your own design tokens.
 - **Compound component pattern.** Break complex components into composable parts: `Dialog.Root`, `Dialog.Trigger`, `Dialog.Content`, `Dialog.Title`. Each part is independently addressable.
+- **Use `cn()` for class logic.** The `clsx` + `tailwind-merge` utility is standard in the shadcn/ui ecosystem for conditionally merging Tailwind classes:
+```ts
+// lib/utils.ts
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+```
 - **Expose component APIs via CSS variables.** Components accept customization through CSS custom properties, not endless prop variants:
 ```css
 .button { background: var(--button-bg, var(--primary)); }
@@ -1028,6 +1088,10 @@ export function AppShell({ nav, children }) {
 - Use `aria-describedby` to connect error messages to inputs.
 - Display form errors in a list above the form for screen reader users.
 - Make error messages actionable: state the problem and suggest the fix.
+- **Disabled submit buttons must explain why.** Show what's missing: "Complete all required fields" or keep the button enabled and validate on submit.
+- **Toasts must not be the only way to convey critical info.** Toasts disappear. Persistent errors, confirmations of destructive actions, and important status changes need inline UI.
+- **Loading states need `aria-busy="true"`** on the loading region, plus visible status text.
+- **Associate helper text with inputs** via `aria-describedby`, not just visual proximity.
 
 ### Motion
 
@@ -1066,6 +1130,11 @@ export function AppShell({ nav, children }) {
 - **Use `content-visibility: auto`** for off-screen content to skip rendering.
 - **Use `scrollbar-gutter: stable`** to prevent layout shift when scrollbars appear.
 - Avoid `transition: all`. Be explicit about which properties animate.
+- **Never interleave DOM reads and writes.** Reading `getBoundingClientRect()` then writing `style.left` in the same frame causes layout thrashing. Batch all reads before all writes.
+- **Use the FLIP technique** (First, Last, Invert, Play) for layout-like animations: measure start position, apply final state, calculate difference, animate the inverse transform.
+- **Keep blur animations small (<=8px)** and short (one-shot effects only). Never animate blur continuously or on large surfaces.
+- **Apply `will-change` only during active animation.** Add on `mouseenter`, remove on `transitionend`. Never leave it on permanently.
+- **Use `h-dvh` instead of `h-screen`** in Tailwind. `dvh` accounts for mobile browser chrome (address bar, toolbar). `h-screen` causes content to be hidden behind browser UI on mobile.
 
 ### Image Optimization
 
@@ -1412,7 +1481,235 @@ The difference between amateur and professional design is the accumulation of hu
 
 ---
 
-## 15. Defensive CSS
+## 15. AI Slop Prevention
+
+Patterns that AI code generators default to that look generic, low-quality, or obviously machine-made. Avoid these.
+
+### Visual Anti-Patterns
+
+- **No purple or multicolor gradients** unless the brand specifically uses them. This is the single most recognizable AI-generated aesthetic.
+- **No glow effects as primary affordances.** Glows are decorative, not functional. A button should be recognizable without a glow.
+- **No generic font stacks.** Don't default to Inter, Roboto, or system-ui for everything. Pick a typeface that fits the project's personality. If no brand direction exists, Inter is acceptable -- but acknowledge it as a starting point, not a design choice.
+- **One accent color per view.** Multiple competing accent colors create visual noise. Pick one for primary actions and let everything else be neutral.
+- **No gradients unless requested.** Default to solid colors. Gradients are a conscious design choice, not a fallback.
+- **No decorative SVG blobs, mesh gradients, or abstract shapes** unless they serve the content. They're filler that signals "no design direction."
+
+### Structural Anti-Patterns
+
+- **No identical metric cards.** The "icon left, big number, small label" pattern repeated 4x in a grid screams template. Vary card internal structure by content type.
+- **No cookie-cutter sidebar + card grid.** Every dashboard layout looks the same because AI defaults to this. Start from the user's primary task and build the layout around it.
+- **Don't center everything.** Centered text, centered cards, centered hero -- this is the AI default. Left-align by default. Center only when content is short and intentionally symmetrical (hero headlines, empty states).
+- **No landing pages that are just sections stacked vertically** with alternating left/right image-text blocks. Break the rhythm.
+
+### Code Anti-Patterns
+
+- **No `h-screen`.** Use `h-dvh` (dynamic viewport height). `h-screen` hides content behind mobile browser chrome.
+- **No `z-[9999]`.** Use the token scale: dropdown(1000), sticky(1100), modal(1200), popover(1300), toast(1400).
+- **No `transition-all`.** Specify exactly which properties transition.
+- **No inline styles for design decisions.** Use Tailwind utilities or CSS variables. Inline styles for layout values (calculated widths, positions from JS) are fine.
+- **No `useEffect` for render logic.** Derived state should be computed during render, not in effects.
+
+### The "Would a Human Ship This?" Test
+
+Before considering UI work done, check:
+1. **Signature element:** Can you point to one thing that makes this design specific to this product? If not, it's a template.
+2. **Squint test:** Blur your eyes. Is the hierarchy clear? Is the primary action obvious?
+3. **Swap test:** Replace the logo. Could this be any other product? If yes, the design lacks identity.
+4. **Fresh eyes:** Look at it tomorrow. Does it still feel right, or does something nag?
+
+---
+
+## 16. Advanced Craft
+
+Techniques that separate polished production interfaces from prototypes.
+
+### Natural Shadows
+
+Tailwind's default shadows use grey. For richer depth, tint shadows with the background's hue:
+
+```css
+:root {
+  --shadow-color: 220deg 60% 50%; /* match your background hue */
+}
+.card-natural-shadow {
+  box-shadow:
+    0 1px 1px hsl(var(--shadow-color) / 0.075),
+    0 2px 2px hsl(var(--shadow-color) / 0.075),
+    0 4px 4px hsl(var(--shadow-color) / 0.075),
+    0 8px 8px hsl(var(--shadow-color) / 0.075);
+}
+```
+
+Change `--shadow-color` per section or theme to keep shadows coherent with their environment. In dark mode, replace shadows with subtle `border` + lighter surface (`bg-card`) since shadows lose visual logic on dark backgrounds.
+
+### Color Palette Generation
+
+To create color states from a single base color (in HSB/HSL):
+- **Darker variant (hover, active):** Decrease lightness, increase saturation. Optionally shift hue toward blue/violet.
+- **Lighter variant (tinted background, badge):** Increase lightness, decrease saturation. Optionally shift hue toward yellow/cyan.
+- **Disabled:** Drop saturation significantly, raise lightness.
+
+```tsx
+{/* Primary button with derived hover/active states */}
+<button className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800
+  text-white transition-colors">
+  Confirm
+</button>
+
+{/* Tinted background from same color family */}
+<div className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 rounded-lg p-4">
+  Info message using the same blue family at lower intensity.
+</div>
+```
+
+### Gradients Without Mud
+
+Standard CSS gradients interpolate in sRGB, causing muddy midpoints between saturated colors. Fix by specifying OKLCH interpolation:
+
+```css
+/* Muddy (default sRGB interpolation) */
+background: linear-gradient(to right, #ff0 , #00f);
+
+/* Clean (perceptually uniform) */
+background: linear-gradient(to right in oklch, oklch(0.9 0.4 110), oklch(0.5 0.3 264));
+```
+
+In Tailwind, use arbitrary values:
+```tsx
+<div className="bg-[linear-gradient(to_right_in_oklch,oklch(0.8_0.15_200),oklch(0.7_0.2_280))]" />
+```
+
+### Corner Smoothing (Squircles)
+
+CSS `border-radius` creates a circular arc that meets the straight edge at a hard tangent point. iOS uses a superellipse (squircle) that starts curving before the arc, creating a smoother, more organic shape.
+
+**CSS-only approach (good enough for most cases):** Use larger radii. A `border-radius` of ~22-28% of the smaller dimension approximates the squircle feel. Tailwind's `rounded-2xl` (16px) to `rounded-3xl` (24px) on cards looks close on typical card sizes.
+
+**For pixel-perfect iOS fidelity**, use a clip-path with an SVG superellipse or the `figma-squircle` package:
+```tsx
+import { getSvgPath } from "figma-squircle"
+
+function Squircle({ width, height, children }) {
+  const path = getSvgPath({
+    width, height,
+    cornerRadius: 20,
+    cornerSmoothing: 0.6,  // 0 = CSS radius, 1 = full squircle
+  })
+  return (
+    <div style={{ clipPath: `path('${path}')`, width, height }}>
+      {children}
+    </div>
+  )
+}
+```
+
+**When it matters:** App icons, hero cards, and premium product images. For standard UI cards, `rounded-xl` or `rounded-2xl` is sufficient.
+
+### Glassmorphism / Frosted Glass
+
+```tsx
+<div className="rounded-xl border border-white/20 bg-white/10 p-6
+  backdrop-blur-xl shadow-xl">
+  <h3 className="font-semibold text-white">Glass Card</h3>
+</div>
+```
+
+Rules:
+- `backdrop-blur-md` (12px) for subtle, `backdrop-blur-xl` (24px) for strong frosting.
+- Background must be semi-transparent (`bg-white/10` to `bg-white/20`).
+- Add a `border border-white/20` for the glass edge catch.
+- Works best over busy or colorful backgrounds where the blur effect is visible.
+- Test performance on mobile -- `backdrop-filter` is GPU-intensive.
+- Falls back gracefully: without `backdrop-filter` support, you get a semi-transparent card (still usable).
+
+### Noise and Texture
+
+Flat surfaces can feel sterile. A subtle noise overlay adds organic warmth:
+
+```css
+.textured {
+  position: relative;
+}
+.textured::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  border-radius: inherit;
+}
+```
+
+Keep opacity between 0.02-0.05. Higher makes the surface look dirty.
+
+### Gradient Masks (Scroll Fade)
+
+Fade content at scroll container boundaries:
+
+```tsx
+<div className="relative max-h-64 overflow-y-auto
+  [mask-image:linear-gradient(to_bottom,transparent,black_16px,black_calc(100%-16px),transparent)]">
+  {/* scrollable content */}
+</div>
+```
+
+### Inset Ring vs Border
+
+For image containers and avatar frames, an inset ring looks more natural than a border because it doesn't add to the element's dimensions and blends with the content:
+
+```tsx
+{/* Hard border (adds 2px to dimensions, feels rigid) */}
+<img className="rounded-full border-2 border-gray-200" />
+
+{/* Inset ring (no dimension change, blends naturally) */}
+<div className="relative rounded-full overflow-hidden">
+  <img className="rounded-full" src={src} alt={alt} />
+  <div className="absolute inset-0 rounded-full ring-1 ring-inset ring-black/10" />
+</div>
+
+{/* Shorthand for non-image elements */}
+<div className="rounded-lg shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]">
+```
+
+### Typed CSS Custom Properties
+
+Use `@property` to enable animation on custom properties and catch invalid values:
+
+```css
+@property --gradient-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.rotating-border {
+  --gradient-angle: 0deg;
+  border-image: conic-gradient(from var(--gradient-angle), #e92a67, #a853ba, #2a8af6, #e92a67) 1;
+  animation: rotate-gradient 3s linear infinite;
+}
+
+@keyframes rotate-gradient {
+  to { --gradient-angle: 360deg; }
+}
+```
+
+Without `@property`, CSS can't interpolate custom properties -- the animation would snap between values instead of transitioning smoothly.
+
+### Optical Adjustments
+
+Small corrections the eye expects but math doesn't provide:
+
+- **Play button icons** need 1-2px right offset to appear centered (the triangle's visual weight sits left of its bounding box).
+- **Circular icons in square containers** appear smaller. Increase circular icon size by ~5% or reduce container padding.
+- **Text next to checkboxes/radio buttons** needs negative top margin of 1-2px at small sizes because the baseline sits above the visual center.
+- **Pill badges** (`rounded-full`) need slightly more horizontal padding than their border-radius suggests -- add 2-4px extra.
+- **All-caps text in buttons** appears vertically off-center. Add 1px more bottom padding, or use `leading-none` and manually center with padding.
+
+---
+
+## 17. Defensive CSS
 
 Patterns that prevent common layout breakage:
 
@@ -1473,7 +1770,7 @@ grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 
 ---
 
-## 16. Modern CSS Reset
+## 18. Modern CSS Reset
 
 A sensible starting point for any project:
 
