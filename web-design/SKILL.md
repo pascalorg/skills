@@ -8,7 +8,7 @@ metadata:
 
 # Web Design
 
-A practitioner-sourced reference for building web interfaces well. Synthesized from Refactoring UI, Tailwind CSS, shadcn/ui, Laws of UX, animations.dev, detail.design, Every Layout, Web Interface Guidelines, jakub.kr, and other authoritative sources.
+A practitioner-sourced reference for building web interfaces well. Synthesized from Refactoring UI, Tailwind CSS, shadcn/ui, Laws of UX, animations.dev, detail.design, Every Layout, Web Interface Guidelines, jakub.kr, userinterface.wiki (Raphael Salaja), and other authoritative sources.
 
 Use this skill whenever you are building, reviewing, or improving a web interface.
 
@@ -66,6 +66,8 @@ When building or reviewing a UI, work through these tiers in order. Each tier de
 16. [Advanced Craft](#16-advanced-craft)
 17. [Defensive CSS](#17-defensive-css)
 18. [Modern CSS Reset](#18-modern-css-reset)
+19. [Predictive Prefetching](#19-predictive-prefetching)
+20. [Audio Feedback and Sound Design](#20-audio-feedback-and-sound-design)
 
 ---
 
@@ -266,6 +268,35 @@ html { text-rendering: optimizeLegibility; -webkit-text-size-adjust: 100%; }
 - Use 500-600 for medium headings.
 - Use 700 for strong emphasis.
 - **Prevent layout shift from weight changes:** Use a hidden `::after` pseudo-element with bold text to reserve the bold width, preventing jitter when toggling active states.
+
+### OpenType Features
+
+Modern fonts ship with OpenType features that dramatically improve typographic quality. Enable them intentionally:
+
+| Feature | CSS | Use |
+|---------|-----|-----|
+| Tabular numbers | `font-variant-numeric: tabular-nums` | Tables, dashboards, pricing, timers -- equal-width digits align in columns |
+| Oldstyle numbers | `font-variant-numeric: oldstyle-nums` | Body text/prose -- digits with ascenders/descenders blend with lowercase |
+| Slashed zero | `font-variant-numeric: slashed-zero` | Code-adjacent UIs, IDs, error codes -- disambiguate 0 from O |
+| Proper fractions | `font-variant-numeric: diagonal-fractions` | Recipes, specs -- converts 1/2 to typographic fraction |
+| Contextual alternates | `font-feature-settings: "calt" 1` | Usually on by default -- keep enabled for smart glyph adjustments |
+| Disambiguation set | `font-feature-settings: "ss02"` | Code UIs -- distinguish I/l/1 and 0/O (font-dependent) |
+
+```css
+/* Data display: aligned, disambiguated */
+.data { font-variant-numeric: tabular-nums slashed-zero; }
+
+/* Prose: numbers that blend with text */
+.prose { font-variant-numeric: oldstyle-nums; }
+
+/* Code-adjacent UI */
+.code-ui { font-variant-numeric: tabular-nums slashed-zero; font-feature-settings: "ss02"; }
+```
+
+- **`font-optical-sizing: auto`** -- leave at default. The font adjusts glyph shapes per size (thicker strokes at small sizes, finer details at large).
+- **`font-synthesis: none`** -- disable to prevent the browser from generating faux bold/italic when the font lacks those weights. Forces you to load proper font files.
+- **Variable fonts accept any weight 100-900**, not just standard stops. Use precise values like 450 or 550 for fine-grained hierarchy without loading extra files.
+- **`text-decoration-skip-ink: auto`** is the default and correctly skips descenders. Add `text-underline-offset: 3px` to push underlines below descenders for cleaner links.
 
 ### Typeface Pairing
 
@@ -877,6 +908,107 @@ function CardSkeleton() {
   )
 }
 ```
+
+### Spring Physics vs Easing Decision Framework
+
+Choose the right timing model based on what drives the motion:
+
+| Motion Type | Use | Why |
+|-------------|-----|-----|
+| User-driven (drag, flick, swipe) | Spring | Survives interruption, preserves velocity |
+| System-driven (state change, feedback) | Easing | Clear start/end, predictable timing |
+| Time representation (progress, loading) | Linear | 1:1 relationship between time and progress |
+| High-frequency (typing, fast toggles) | None | Animation adds noise, feels slower |
+| Keyboard-initiated actions | None | Must feel instant and connected to input |
+
+**Spring parameter guidance:** Start with `stiffness: 300, damping: 20` (slight bounce) or `stiffness: 500, damping: 30` (snappy, minimal overshoot). Avoid `damping < 10` with high stiffness -- creates excessive oscillation. Always pass `velocity` from drag events to preserve input energy:
+
+```tsx
+onDragEnd={(e, info) => {
+  animate(target, { x: 0 }, {
+    type: "spring",
+    velocity: info.velocity.x,
+    stiffness: 500,
+    damping: 30,
+  });
+}}
+```
+
+**When an animation feels slow**, shorten the duration first -- don't change the easing curve. The duration is almost always the problem.
+
+### Container Bounds Animation
+
+Animating `width` or `height` triggers layout recalculation. Use this pattern instead:
+
+**Two-div pattern:** Outer div animates (via `motion.div`), inner div measures (via ref). Never measure and animate the same element -- it creates a feedback loop.
+
+```tsx
+function AnimatedContainer({ children }) {
+  const [ref, bounds] = useMeasure()
+  return (
+    <motion.div
+      animate={{ height: bounds.height }}
+      transition={{ duration: 0.2, delay: 0.05 }}
+      style={{ overflow: "hidden" }}>
+      <div ref={ref}>{children}</div>
+    </motion.div>
+  )
+}
+```
+
+**Measurement hook using ResizeObserver** (not `getBoundingClientRect` which causes layout thrashing):
+
+```tsx
+function useMeasure() {
+  const [element, setElement] = useState(null)
+  const [bounds, setBounds] = useState({ width: 0, height: 0 })
+  const ref = useCallback((node) => setElement(node), [])
+
+  useEffect(() => {
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => {
+      setBounds({ width: entry.contentRect.width, height: entry.contentRect.height })
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [element])
+
+  return [ref, bounds]
+}
+```
+
+- Use **callback ref** (not `useRef`) so the observer attaches when the DOM node is ready.
+- Set `overflow: hidden` on the animated container to clip content during transitions.
+- Guard `bounds === 0` on initial render -- fall back to `"auto"` height.
+- **Use sparingly:** buttons, accordions, expandable sections. Not every container.
+
+### AnimatePresence Deep Patterns
+
+- **`mode="wait"` doubles perceived duration** because exit completes before enter starts. Halve your timing values when using it.
+- **`mode="sync"` causes layout conflicts** -- entering and exiting elements coexist briefly. Use `popLayout` for list reordering instead.
+- **Disable interactions on exiting elements.** Use `useIsPresent()` and set `disabled={!isPresent}` or `pointer-events: none` on elements during their exit animation -- otherwise users click elements that are animating away.
+- **Nested AnimatePresence** needs the `propagate` prop so parent exit triggers child exits.
+- **Exit should mirror initial** for symmetric feel, but use less motion on exit (fixed small `y: -12px` instead of full distance, add `blur(4px)` to soften).
+
+### View Transitions API
+
+For page-level and cross-document transitions, prefer the native View Transitions API over JS animation libraries:
+
+```css
+/* 1. Assign unique transition names to elements that persist across views */
+.hero-image { view-transition-name: hero; }
+.page-title { view-transition-name: title; }
+
+/* 2. Style the transition pseudo-elements */
+::view-transition-group(hero) {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+```
+
+- Every `view-transition-name` must be **unique during a transition** (no two elements can share the same name simultaneously).
+- **Clean up transition names** after completion if they were dynamically assigned.
+- Falls back gracefully in unsupported browsers -- the page just navigates without animation.
 
 ---
 
@@ -1881,6 +2013,78 @@ Use `@property` to enable animation on custom properties and catch invalid value
 
 Without `@property`, CSS can't interpolate custom properties -- the animation would snap between values instead of transitioning smoothly.
 
+### Button Shadow Anatomy (Six-Layer)
+
+Polished buttons use six layered techniques working together to mimic real-world light physics:
+
+```css
+.button-polished {
+  /* Subtle gradient for dimension */
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklch, var(--primary), white 4%),
+    var(--primary)
+  );
+
+  box-shadow:
+    /* 1. Outer cut: thin dark edge */
+    0 0 0 0.5px rgba(0, 0, 0, 0.15),
+    /* 2. Inner ambient highlight: light from all sides */
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    /* 3. Inner top highlight: primary light from above */
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    /* 4-6. Layered depth shadows */
+    0 1px 2px rgba(0, 0, 0, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 4px 8px rgba(0, 0, 0, 0.05);
+
+  /* Text shadow for contrast */
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+}
+```
+
+This technique replaces flat buttons with physically convincing depth. The gradient adds dimension, the inset shadows simulate environmental and directional light, and the outer shadows create depth.
+
+### Semi-Transparent Borders
+
+Use alpha-based border colors instead of hardcoded hex values. Semi-transparent borders adapt automatically to any background:
+
+```css
+/* Hardcoded (breaks on different backgrounds) */
+border: 1px solid #e5e5e5;
+
+/* Adaptive (works on any background) */
+border: 1px solid rgba(0, 0, 0, 0.12);
+/* Dark mode equivalent */
+border: 1px solid rgba(255, 255, 255, 0.12);
+```
+
+This removes the need for separate light/dark border tokens in many cases.
+
+### CSS Pseudo-Element Patterns
+
+Native pseudo-elements and selectors that reduce DOM complexity:
+
+- **`::marker`** for custom list bullets -- replaces background-image hacks:
+```css
+li::marker { color: var(--muted-foreground); font-size: 0.8em; }
+```
+
+- **`::first-line`** for typographic treatments -- automatically adapts when viewport changes:
+```css
+.article p:first-of-type::first-line {
+  font-variant-caps: small-caps;
+  font-weight: 500;
+}
+```
+
+- **`::backdrop`** for dialog/popover overlays -- replaces extra overlay divs:
+```css
+dialog::backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
+```
+
+- **`::placeholder`** for input styling (keep at lower contrast than actual input text).
+
 ### Optical Adjustments
 
 Small corrections the eye expects but math doesn't provide:
@@ -1996,6 +2200,159 @@ h1, h2, h3, h4, h5, h6 { text-wrap: balance; }
 /* 9. Root stacking context */
 #root, #__next { isolation: isolate; }
 ```
+
+---
+
+## 19. Predictive Prefetching
+
+Loading content before the user clicks by analyzing cursor trajectory, reducing perceived latency by 100-200ms.
+
+### Trajectory Prediction vs Hover
+
+Standard hover-based prefetching (`onMouseEnter`) waits until the user has stopped moving and is already on the element. **Trajectory prediction** calculates where the cursor is heading while still in motion, reclaiming the ~100-200ms that hover-based approaches waste.
+
+```tsx
+// Hover-based (too late — fires after the user has arrived)
+<Link href="/about" onMouseEnter={() => router.prefetch("/about")}>About</Link>
+
+// Trajectory-based (fires while cursor is still moving toward the element)
+const { elementRef } = useForesight({
+  callback: () => router.prefetch("/about"),
+  hitSlop: 20,   // expand invisible prediction area by 20px
+  name: "about-link",
+})
+<Link ref={elementRef} href="/about">About</Link>
+```
+
+### Rules
+
+- **Prefetch by intent, not viewport.** Don't prefetch all visible links. Most users don't click most visible links. Use trajectory prediction or hover to determine intent.
+- **Use `hitSlop` to start predictions earlier.** Expanding the invisible area (e.g., 20px) around elements begins loading sooner without visual changes.
+- **Fall back gracefully on touch devices.** Touch has no cursor trajectory. Fall back to `touchstart` or viewport-based strategies.
+- **Prefetch on keyboard navigation.** Monitor focus changes and prefetch when the user is a few tab stops away from a target.
+- **Use selectively.** Predictive prefetching is most valuable for data-heavy dashboards, multi-page apps with slow APIs, and e-commerce. Skip it for static sites with instant navigation.
+
+Reference: [ForesightJS](https://foresightjs.com)
+
+---
+
+## 20. Audio Feedback and Sound Design
+
+Audio is a UI tool, not decoration. Used correctly, it reinforces actions and creates a sense of physical interaction. Used incorrectly, it annoys.
+
+### When to Use Sound
+
+| Interaction | Sound? | Reason |
+|-------------|--------|--------|
+| Payment success | Yes | Significant confirmation |
+| Form submission | Yes | User needs assurance |
+| Error state | Yes | Can't be overlooked |
+| Notification | Yes | User may not be looking at screen |
+| Significant button (e.g., send) | Maybe | Only for milestone actions |
+| Typing | No | Too frequent |
+| Hover | No | Decorative, no informational value |
+| Scroll | No | Too frequent |
+| Navigation | No | Keyboard nav would be noisy |
+
+### Accessibility Rules
+
+- **Every sound must have a visual equivalent.** Sound supplements visual feedback; never replaces it.
+- **Provide a toggle to disable sounds.** Respect user preference.
+- **Respect `prefers-reduced-motion`** -- reduce or disable sound alongside motion.
+- **Sound weight matches action weight.** Soft click for toggles, success chime for purchases. Never a fanfare for a checkbox.
+- **Sound duration matches action duration.** Click sounds: 5-15ms. Confirmation: ~200ms. Long sounds for instant actions feel wrong.
+- **Informative, not punishing.** Gentle alert for validation errors, not a harsh buzzer.
+
+### Implementation
+
+```tsx
+// Preload sounds to avoid first-play delay
+const sounds = {
+  success: new Audio("/sounds/success.mp3"),
+  error: new Audio("/sounds/error.mp3"),
+  click: new Audio("/sounds/click.mp3"),
+}
+Object.values(sounds).forEach(a => { a.volume = 0.3; a.load() })
+
+function playSound(name: keyof typeof sounds) {
+  sounds[name].currentTime = 0   // reset so rapid re-triggering works
+  sounds[name].play()
+}
+```
+
+- **Default volume: 0.3** (30%). Never 1.0 -- it startles.
+- **Reset `currentTime = 0`** before every play for rapid re-triggering.
+- **Preload audio files** to prevent delay on first trigger.
+
+### Procedural Sound with Web Audio API
+
+For UI sounds without audio files -- generate clicks and tones programmatically:
+
+```ts
+// Singleton AudioContext (never create per sound)
+let ctx: AudioContext | null = null
+function getCtx() { return ctx ??= new AudioContext() }
+
+// Click sound: filtered noise burst (5-15ms)
+function playClick() {
+  const ctx = getCtx()
+  if (ctx.state === "suspended") ctx.resume()
+
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.008, ctx.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < data.length; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 50)
+  }
+
+  const source = ctx.createBufferSource()
+  source.buffer = buffer
+  const filter = ctx.createBiquadFilter()
+  filter.type = "bandpass"
+  filter.frequency.value = 4000  // 3000-6000Hz for crisp clicks
+  filter.Q.value = 3             // 2-5 for focused but natural
+  const gain = ctx.createGain()
+  gain.gain.setValueAtTime(0.3, ctx.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05)
+
+  source.connect(filter).connect(gain).connect(ctx.destination)
+  source.start()
+  source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect() }
+}
+
+// Tonal sound: oscillator with pitch sweep (confirmations, pops)
+function playTone() {
+  const ctx = getCtx()
+  if (ctx.state === "suspended") ctx.resume()
+  const t = ctx.currentTime
+  const osc = ctx.createOscillator()
+  osc.frequency.setValueAtTime(400, t)
+  osc.frequency.exponentialRampToValueAtTime(600, t + 0.04)  // upward sweep
+  const gain = ctx.createGain()
+  gain.gain.setValueAtTime(0.3, t)
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08)
+
+  osc.connect(gain).connect(ctx.destination)
+  osc.start(t)
+  osc.stop(t + 0.08)
+  osc.onended = () => { osc.disconnect(); gain.disconnect() }
+}
+```
+
+Key rules for Web Audio:
+- **Reuse a single `AudioContext`** -- never create per sound (browser limits to ~6).
+- **Resume suspended context** before playing (`ctx.state === "suspended"`). Browsers suspend AudioContext until user interaction.
+- **Disconnect nodes after playback** to prevent memory leaks.
+- **Exponential ramps for decay** (not linear). Target `0.001` (not `0` -- exponential ramps can't reach zero).
+- **Noise for percussive sounds** (clicks, taps). **Oscillators for tonal sounds** (pops, confirmations) -- add pitch sweep for musicality.
+
+| User Feedback | Fix |
+|---------------|-----|
+| "too harsh" | Lower filter frequency, reduce Q |
+| "too muffled" | Higher filter frequency |
+| "too long" | Shorter buffer duration, faster decay |
+| "cuts off abruptly" | Use exponential decay instead of linear |
+| "more mechanical" | Higher Q, faster decay |
+| "softer" | Lower gain, use triangle wave |
 
 ---
 
