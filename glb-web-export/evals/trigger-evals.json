@@ -1,0 +1,53 @@
+{
+  "skill_name": "glb-web-export",
+  "evals": [
+    {
+      "query": "This GLB is 42 MB and takes forever to load on the site. Can you make it smaller?",
+      "should_trigger": true
+    },
+    {
+      "query": "I exported a model from Blender as .glb for a Three.js page. Audit it and prepare it for the web.",
+      "should_trigger": true
+    },
+    {
+      "query": "Should I use Draco or meshopt for this glTF, and how do I wire the decoder in React Three Fiber?",
+      "should_trigger": true
+    },
+    {
+      "query": "Convert the 4K PNG textures in this glb to KTX2 with basisu and tell me how much GPU memory I save.",
+      "should_trigger": true
+    },
+    {
+      "query": "My photogrammetry scan loads in model-viewer but eats 900 MB of VRAM. What can I strip out without breaking the material?",
+      "should_trigger": true
+    },
+    {
+      "query": "Run gltfpack on this asset and give me a before/after report on file size, draw calls and triangle count.",
+      "should_trigger": true
+    },
+    {
+      "query": "Check that compressing this glTF didn't change the scale or lose the node names my app looks up by string.",
+      "should_trigger": true
+    },
+    {
+      "query": "Move the sofa two metres left and widen the doorway in my room layout.",
+      "should_trigger": false
+    },
+    {
+      "query": "Generate a 3D model of a spiral staircase from this text description.",
+      "should_trigger": false
+    },
+    {
+      "query": "Convert this floor plan PDF into a 3D building model.",
+      "should_trigger": false
+    },
+    {
+      "query": "My Three.js scene drops to 20 fps when I enable the bloom pass. Help me get it back to 60.",
+      "should_trigger": false
+    },
+    {
+      "query": "Write a GLSL shader that fakes subsurface scattering on a candle.",
+      "should_trigger": false
+    }
+  ]
+}
