@@ -1,0 +1,12 @@
+{
+  "name": "glb-web-export-scripts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "draco3dgltf": "^1.5.7",
+    "meshoptimizer": "^1.2.0",
+    "pngjs": "^7.0.0"
+  }
+}

@@ -21,6 +21,7 @@ npx skills add pascalorg/skills --skill image-analysis
 | [image-to-text](./image-to-text) | OCR — extract text, labels, and UI copy from screenshots and design mockups |
 | [contrast-check](./contrast-check) | Check color pairs against WCAG AA/AAA accessibility standards |
 | [web-design](./web-design) | Comprehensive web design reference — layout, typography, color, animation, accessibility, and more |
+| [glb-web-export](./glb-web-export) | Audit and optimize a GLB/glTF for the browser — Draco, meshopt, KTX2, with a measured before/after report |
 
 ## License
 
